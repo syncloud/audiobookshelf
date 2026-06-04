@@ -1,6 +1,6 @@
-#!/bin/bash -ex
+#!/bin/sh -ex
 
-DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+DIR=$( cd "$( dirname "$0" )" && pwd )
 
 SNAP=${DIR}/../build/snap
 NODE=${SNAP}/node/node.sh
@@ -8,7 +8,7 @@ APP=${SNAP}/abs
 
 ${NODE} --version
 
-source ${SNAP}/node/runtime-env.sh
+. ${SNAP}/node/runtime-env.sh
 test -f "${NUSQLITE3_PATH}"
 echo "nusqlite3 present: ${NUSQLITE3_PATH}"
 
