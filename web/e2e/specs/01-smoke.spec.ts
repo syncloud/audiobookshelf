@@ -4,30 +4,27 @@ import { shoot } from '../helpers/screenshot'
 const username = process.env.PLAYWRIGHT_USER || 'user'
 const password = process.env.PLAYWRIGHT_PASSWORD || 'Password1'
 
-test('audiobookshelf loads and accepts initial setup', async ({ page }, info) => {
+test('audiobookshelf loads and reaches login or initial setup', async ({ page }, info) => {
+  const consoleErrors: string[] = []
+  const failed: string[] = []
+  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text()) })
+  page.on('requestfailed', (r) => failed.push(`${r.failure()?.errorText} ${r.url()}`))
+  page.on('response', (r) => { if (r.status() >= 400) failed.push(`HTTP ${r.status()} ${r.url()}`) })
+
   await page.goto('/')
   await page.waitForLoadState('domcontentloaded')
   await expect(page).toHaveTitle(/audiobookshelf/i, { timeout: 30_000 })
   await shoot(page, info, 'landing')
 
-  const userField = page.locator('input#root-username, input[type="text"]').first()
-  const passField = page.locator('input[type="password"]').first()
-  const submit = page
-    .getByRole('button', { name: /create|submit|root|account/i })
-    .or(page.locator('button[type="submit"]'))
-    .first()
+  const formField = page.locator('input[type="password"], input[type="text"], input').first()
+  const loaded = await formField.isVisible({ timeout: 60_000 }).catch(() => false)
 
-  const onInit = await passField.isVisible({ timeout: 15_000 }).catch(() => false)
-  if (onInit) {
-    if (await userField.isVisible().catch(() => false)) {
-      await userField.fill(username)
-    }
-    await passField.fill(password)
-    await shoot(page, info, 'init-filled')
-    await submit.click({ timeout: 10_000 }).catch(() => {})
-    await page.waitForLoadState('networkidle').catch(() => {})
-    await shoot(page, info, 'after-init')
+  console.log('=== console errors ===\n' + consoleErrors.join('\n'))
+  console.log('=== failed/4xx-5xx requests ===\n' + failed.join('\n'))
+  if (!loaded) {
+    console.log('=== page content (first 4000 chars) ===\n' + (await page.content()).slice(0, 4000))
   }
+  await shoot(page, info, 'after-load')
 
-  await expect(page.locator('body')).toBeVisible()
+  expect(loaded, 'a login/init form input should become visible').toBeTruthy()
 })
