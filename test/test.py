@@ -57,16 +57,20 @@ def test_index(app_domain):
     wait_for_rest(requests.session(), "https://{0}".format(app_domain), 200, 30)
 
 
-def test_openid_configured(app_domain):
+def test_root_admin_and_openid(app_domain):
     session = requests.session()
     status_url = "https://{0}/status".format(app_domain)
     wait_for_rest(session, status_url, 200, 30)
-    methods = None
+    status = None
     for _ in range(30):
         response = session.get(status_url, verify=False)
         if response.status_code == 200:
-            methods = response.json().get('authMethods', [])
-            if 'openid' in methods:
+            status = response.json()
+            if status.get('isInit') and 'openid' in status.get('authMethods', []):
                 return
         time.sleep(2)
-    assert False, "openid not enabled, authMethods={0}".format(methods)
+    assert False, "root admin / openid not configured, status={0}".format(status)
+
+
+def test_admin_password_file(device):
+    device.run_ssh('test -s /var/snap/audiobookshelf/current/initial_admin_password', retries=10)

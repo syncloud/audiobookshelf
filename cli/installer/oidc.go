@@ -1,14 +1,19 @@
 package installer
 
 import (
+	"bytes"
+	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"go.uber.org/zap"
 	_ "modernc.org/sqlite"
 	"io"
+	"net"
 	"net/http"
 	"os"
 	"path"
@@ -20,6 +25,7 @@ const (
 	platformCACert    = "/var/snap/platform/current/syncloud.ca.crt"
 	oidcCallbackPath  = "/auth/openid/callback"
 	serverSettingsKey = "server-settings"
+	adminUsername     = "admin"
 )
 
 type oidcDiscovery struct {
@@ -31,14 +37,24 @@ type oidcDiscovery struct {
 	EndSessionEndpoint    string `json:"end_session_endpoint"`
 }
 
-func (i *Installer) ConfigureOIDC(storageDir string) error {
-	dbPath := path.Join(storageDir, "config", "absdatabase.sqlite")
-	if err := i.waitForServerSettings(dbPath); err != nil {
+func (i *Installer) ConfigureApp(storageDir string) error {
+	socket := path.Join(DataDir, "audiobookshelf.sock")
+	client := socketHTTPClient(socket)
+
+	isInit, err := i.waitForStatus(client)
+	if err != nil {
 		return err
 	}
+	if !isInit {
+		if err := i.createRootUser(client); err != nil {
+			return fmt.Errorf("create root user: %w", err)
+		}
+	}
+
+	dbPath := path.Join(storageDir, "config", "absdatabase.sqlite")
 	secret, err := i.platformClient.RegisterOIDCClient(App, oidcCallbackPath, true, "client_secret_basic")
 	if err != nil {
-		return fmt.Errorf("register: %w", err)
+		return fmt.Errorf("oidc register: %w", err)
 	}
 	authUrl, err := i.platformClient.GetAppUrl("auth")
 	if err != nil {
@@ -46,27 +62,75 @@ func (i *Installer) ConfigureOIDC(storageDir string) error {
 	}
 	discovery := i.discoverOIDC(authUrl)
 	if err := i.enableOIDCInDb(dbPath, discovery, secret); err != nil {
-		return fmt.Errorf("update db: %w", err)
+		return fmt.Errorf("oidc update db: %w", err)
 	}
 	return i.platformClient.RestartService(fmt.Sprint(App, ".abs"))
 }
 
-func (i *Installer) waitForServerSettings(dbPath string) error {
+func socketHTTPClient(socket string) *http.Client {
+	return &http.Client{
+		Timeout: 15 * time.Second,
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+				return (&net.Dialer{}).DialContext(ctx, "unix", socket)
+			},
+		},
+	}
+}
+
+func (i *Installer) waitForStatus(client *http.Client) (bool, error) {
 	for attempt := 0; attempt < 60; attempt++ {
-		if _, err := os.Stat(dbPath); err == nil {
-			db, err := sql.Open("sqlite", dbPath)
-			if err == nil {
-				var value string
-				queryErr := db.QueryRow(`SELECT value FROM settings WHERE key = ?`, serverSettingsKey).Scan(&value)
-				db.Close()
-				if queryErr == nil {
-					return nil
+		resp, err := client.Get("http://localhost/status")
+		if err == nil {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				var status struct {
+					IsInit bool `json:"isInit"`
+				}
+				if json.Unmarshal(body, &status) == nil {
+					return status.IsInit, nil
 				}
 			}
 		}
 		time.Sleep(2 * time.Second)
 	}
-	return fmt.Errorf("server-settings not found in %s", dbPath)
+	return false, fmt.Errorf("audiobookshelf did not become ready")
+}
+
+func (i *Installer) createRootUser(client *http.Client) error {
+	password, err := randomPassword()
+	if err != nil {
+		return err
+	}
+	payload, err := json.Marshal(map[string]interface{}{
+		"newRoot": map[string]string{"username": adminUsername, "password": password},
+	})
+	if err != nil {
+		return err
+	}
+	resp, err := client.Post("http://localhost/init", "application/json", bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("init returned %s", resp.Status)
+	}
+	passwordFile := path.Join(DataDir, "initial_admin_password")
+	if err := os.WriteFile(passwordFile, []byte(password+"\n"), 0600); err != nil {
+		return err
+	}
+	i.logger.Info("created root admin user", zap.String("username", adminUsername), zap.String("password_file", passwordFile))
+	return nil
+}
+
+func randomPassword() (string, error) {
+	buffer := make([]byte, 24)
+	if _, err := rand.Read(buffer); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(buffer), nil
 }
 
 func (i *Installer) discoverOIDC(authUrl string) *oidcDiscovery {
