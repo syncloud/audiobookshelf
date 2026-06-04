@@ -1,0 +1,11 @@
+build/
+artifact/
+package.name
+*.snap
+node_modules/
+web/e2e/.auth/
+web/e2e/test-results/
+web/e2e/playwright-report/
+.idea/
+.claude/
+test/__pycache__/
