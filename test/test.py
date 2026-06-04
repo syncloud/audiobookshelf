@@ -1,3 +1,4 @@
+import time
 from os.path import join
 from subprocess import check_output
 
@@ -54,3 +55,18 @@ def test_abs_listening(device):
 
 def test_index(app_domain):
     wait_for_rest(requests.session(), "https://{0}".format(app_domain), 200, 30)
+
+
+def test_openid_configured(app_domain):
+    session = requests.session()
+    status_url = "https://{0}/status".format(app_domain)
+    wait_for_rest(session, status_url, 200, 30)
+    methods = None
+    for _ in range(30):
+        response = session.get(status_url, verify=False)
+        if response.status_code == 200:
+            methods = response.json().get('authMethods', [])
+            if 'openid' in methods:
+                return
+        time.sleep(2)
+    assert False, "openid not enabled, authMethods={0}".format(methods)

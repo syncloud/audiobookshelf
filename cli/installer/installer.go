@@ -67,6 +67,13 @@ func (i *Installer) Initialize() error {
 	if err := i.StorageChange(); err != nil {
 		return err
 	}
+	storageDir, err := i.platformClient.InitStorage(App, App)
+	if err != nil {
+		return err
+	}
+	if err := i.ConfigureOIDC(storageDir); err != nil {
+		return fmt.Errorf("configure oidc: %w", err)
+	}
 	if err := os.WriteFile(i.installFile, []byte("installed"), 0644); err != nil {
 		return err
 	}
