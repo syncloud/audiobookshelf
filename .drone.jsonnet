@@ -1,6 +1,6 @@
 local name = 'audiobookshelf';
 local version = '2.35.1';
-local go = '1.24.0';
+local go = '1.25.0';
 local nginx = '1.24.0';
 local python = '3.12-slim-bookworm';
 local platform = '26.04.10';
