@@ -24,8 +24,9 @@ import (
 
 const (
 	platformCACert         = "/var/snap/platform/current/syncloud.ca.crt"
-	oidcWebCallbackPath    = "/auth/openid/callback"
-	oidcMobileRedirectPath = "/auth/openid/mobile-redirect"
+	routerBasePath         = "/" + App
+	oidcWebCallbackPath    = routerBasePath + "/auth/openid/callback"
+	oidcMobileRedirectPath = routerBasePath + "/auth/openid/mobile-redirect"
 	serverSettingsKey      = "server-settings"
 	adminUsername          = "admin"
 )
@@ -209,6 +210,7 @@ func (o *Oidc) enableOIDCInDb(dbPath string, discovery *oidcDiscovery, secret st
 	}
 
 	settings["authActiveAuthMethods"] = []string{"openid"}
+	settings["authOpenIDSubfolderForRedirectURLs"] = routerBasePath
 	settings["authOpenIDGroupClaim"] = "groups"
 	settings["authOpenIDAdminGroups"] = "syncloud"
 	settings["authOpenIDGroupDefaultRole"] = "user"

@@ -60,4 +60,7 @@ func TestEnableOIDCInDb(t *testing.T) {
 	if s["authOpenIDGroupClaim"] != "groups" || s["authOpenIDAdminGroups"] != "syncloud" || s["authOpenIDGroupDefaultRole"] != "user" {
 		t.Fatalf("group mapping not set: claim=%v admin=%v default=%v", s["authOpenIDGroupClaim"], s["authOpenIDAdminGroups"], s["authOpenIDGroupDefaultRole"])
 	}
+	if s["authOpenIDSubfolderForRedirectURLs"] != routerBasePath {
+		t.Fatalf("redirect subfolder = %v, want %v", s["authOpenIDSubfolderForRedirectURLs"], routerBasePath)
+	}
 }

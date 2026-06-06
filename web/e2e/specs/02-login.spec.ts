@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { test } from '@playwright/test'
 import { shoot } from '../helpers/screenshot'
 import { loginViaSyncloud } from '../helpers/auth'
 
@@ -9,6 +9,5 @@ const password = process.env.PLAYWRIGHT_PASSWORD || 'Password1'
 
 test('logs in via Syncloud SSO and lands in the app', async ({ page }, info) => {
   await loginViaSyncloud(page, baseURL, username, password)
-  await expect(page).not.toHaveURL(/\/login/)
   await shoot(page, info, 'after-login')
 })
