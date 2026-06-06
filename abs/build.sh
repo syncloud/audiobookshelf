@@ -10,6 +10,14 @@ mkdir -p ${APP_OUT} ${NODE_DIR}
 
 cp -r /app/. ${APP_OUT}
 
+OIDC_JS=${APP_OUT}/server/auth/OidcAuthStrategy.js
+SETTINGS_JS=${APP_OUT}/server/objects/settings/ServerSettings.js
+grep -q 'authOpenIDAdminGroups' ${OIDC_JS} || sed -i -f ${DIR}/oidc-group-mapping.sed ${OIDC_JS}
+grep -q 'authOpenIDAdminGroups' ${SETTINGS_JS} || sed -i -f ${DIR}/oidc-group-mapping.sed ${SETTINGS_JS}
+grep -q 'adminGroups.includes(group)' ${OIDC_JS}
+grep -q 'rolesInOrderOfPriority.includes(defaultRole)' ${OIDC_JS}
+grep -q 'this.authOpenIDAdminGroups = settings.authOpenIDAdminGroups' ${SETTINGS_JS}
+
 cp -r /usr ${NODE_DIR}/usr
 cp -r /lib ${NODE_DIR}/lib
 

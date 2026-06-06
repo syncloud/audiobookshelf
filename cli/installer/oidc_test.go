@@ -45,7 +45,7 @@ func TestEnableOIDCInDb(t *testing.T) {
 		t.Fatalf("value is not valid json: %v", err)
 	}
 	methods, _ := json.Marshal(s["authActiveAuthMethods"])
-	if string(methods) != `["local","openid"]` {
+	if string(methods) != `["openid"]` {
 		t.Fatalf("auth methods = %s", methods)
 	}
 	if s["authOpenIDClientSecret"] != "s3cr3t" || s["authOpenIDClientID"] != App {
@@ -56,5 +56,8 @@ func TestEnableOIDCInDb(t *testing.T) {
 	}
 	if s["authOpenIDAutoRegister"] != true {
 		t.Fatalf("autoRegister not set")
+	}
+	if s["authOpenIDGroupClaim"] != "groups" || s["authOpenIDAdminGroups"] != "syncloud" || s["authOpenIDGroupDefaultRole"] != "user" {
+		t.Fatalf("group mapping not set: claim=%v admin=%v default=%v", s["authOpenIDGroupClaim"], s["authOpenIDAdminGroups"], s["authOpenIDGroupDefaultRole"])
 	}
 }

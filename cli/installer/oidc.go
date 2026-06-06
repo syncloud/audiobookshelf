@@ -191,7 +191,10 @@ func (i *Installer) enableOIDCInDb(dbPath string, discovery *oidcDiscovery, secr
 		return err
 	}
 
-	settings["authActiveAuthMethods"] = []string{"local", "openid"}
+	settings["authActiveAuthMethods"] = []string{"openid"}
+	settings["authOpenIDGroupClaim"] = "groups"
+	settings["authOpenIDAdminGroups"] = "syncloud"
+	settings["authOpenIDGroupDefaultRole"] = "user"
 	settings["authOpenIDIssuerURL"] = discovery.Issuer
 	settings["authOpenIDAuthorizationURL"] = discovery.AuthorizationEndpoint
 	settings["authOpenIDTokenURL"] = discovery.TokenEndpoint
