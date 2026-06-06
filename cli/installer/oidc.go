@@ -30,6 +30,10 @@ const (
 	adminUsername          = "admin"
 )
 
+type absStatus struct {
+	IsInit bool `json:"isInit"`
+}
+
 type oidcDiscovery struct {
 	Issuer                string `json:"issuer"`
 	AuthorizationEndpoint string `json:"authorization_endpoint"`
@@ -99,9 +103,7 @@ func (o *Oidc) waitForStatus(client *http.Client) (bool, error) {
 			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
-				var status struct {
-					IsInit bool `json:"isInit"`
-				}
+				var status absStatus
 				if json.Unmarshal(body, &status) == nil {
 					return status.IsInit, nil
 				}
