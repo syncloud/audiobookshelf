@@ -56,10 +56,20 @@ func (i *Installer) Configure() error {
 	if err := i.StorageChange(); err != nil {
 		return err
 	}
+	storageDir, err := i.platformClient.InitStorage(App, App)
+	if err != nil {
+		return err
+	}
 	if !i.IsInstalled() {
-		if err := i.Initialize(); err != nil {
+		if err := i.oidc.Initialize(); err != nil {
+			return fmt.Errorf("oidc initialize: %w", err)
+		}
+		if err := os.WriteFile(i.installFile, []byte("installed"), 0644); err != nil {
 			return err
 		}
+	}
+	if err := i.oidc.ConfigureApp(storageDir); err != nil {
+		return fmt.Errorf("configure app: %w", err)
 	}
 	return i.UpdateVersion()
 }
@@ -67,20 +77,6 @@ func (i *Installer) Configure() error {
 func (i *Installer) IsInstalled() bool {
 	_, err := os.Stat(i.installFile)
 	return err == nil
-}
-
-func (i *Installer) Initialize() error {
-	storageDir, err := i.platformClient.InitStorage(App, App)
-	if err != nil {
-		return err
-	}
-	if err := i.oidc.Initialize(); err != nil {
-		return fmt.Errorf("oidc initialize: %w", err)
-	}
-	if err := i.oidc.ConfigureApp(storageDir); err != nil {
-		return fmt.Errorf("configure app: %w", err)
-	}
-	return os.WriteFile(i.installFile, []byte("installed"), 0644)
 }
 
 func (i *Installer) PreRefresh() error {
