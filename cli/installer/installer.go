@@ -74,6 +74,9 @@ func (i *Installer) Initialize() error {
 	if err != nil {
 		return err
 	}
+	if err := i.oidc.Initialize(); err != nil {
+		return fmt.Errorf("oidc initialize: %w", err)
+	}
 	if err := i.oidc.ConfigureApp(storageDir); err != nil {
 		return fmt.Errorf("configure app: %w", err)
 	}

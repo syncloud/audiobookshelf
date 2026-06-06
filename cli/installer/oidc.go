@@ -30,10 +30,6 @@ const (
 	adminUsername          = "admin"
 )
 
-type absStatus struct {
-	IsInit bool `json:"isInit"`
-}
-
 type oidcDiscovery struct {
 	Issuer                string `json:"issuer"`
 	AuthorizationEndpoint string `json:"authorization_endpoint"`
@@ -59,17 +55,14 @@ func NewOidc(platformClient *platform.Client, logger *zap.Logger, dataDir string
 	}
 }
 
-func (o *Oidc) ConfigureApp(storageDir string) error {
-	isInit, err := o.waitForStatus()
-	if err != nil {
+func (o *Oidc) Initialize() error {
+	if err := o.waitForReady(); err != nil {
 		return err
 	}
-	if !isInit {
-		if err := o.createRootUser(); err != nil {
-			return fmt.Errorf("create root user: %w", err)
-		}
-	}
+	return o.createRootUser()
+}
 
+func (o *Oidc) ConfigureApp(storageDir string) error {
 	dbPath := path.Join(storageDir, "config", "absdatabase.sqlite")
 	secret, err := o.platformClient.RegisterOIDCClient(App, []string{oidcWebCallbackPath, oidcMobileRedirectPath}, true, "client_secret_basic")
 	if err != nil {
@@ -97,22 +90,18 @@ func socketHTTPClient(socket string) *http.Client {
 	}
 }
 
-func (o *Oidc) waitForStatus() (bool, error) {
+func (o *Oidc) waitForReady() error {
 	for attempt := 0; attempt < 60; attempt++ {
 		resp, err := o.client.Get("http://localhost/status")
 		if err == nil {
-			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
-				var status absStatus
-				if json.Unmarshal(body, &status) == nil {
-					return status.IsInit, nil
-				}
+				return nil
 			}
 		}
 		time.Sleep(2 * time.Second)
 	}
-	return false, fmt.Errorf("audiobookshelf did not become ready")
+	return fmt.Errorf("audiobookshelf did not become ready")
 }
 
 func (o *Oidc) createRootUser() error {
