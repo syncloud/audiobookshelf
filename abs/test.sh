@@ -13,5 +13,8 @@ ${NODE} --version
 test -f "${NUSQLITE3_PATH}"
 echo "nusqlite3 present: ${NUSQLITE3_PATH}"
 
+${SNAP}/node/ffprobe.sh -version | grep -q "ffprobe version"
+${SNAP}/node/ffmpeg.sh -version | grep -q "ffmpeg version"
+
 cd ${APP}
 ${NODE} -e "console.log('node runtime ok')"
