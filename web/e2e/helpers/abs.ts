@@ -1,23 +1,18 @@
 import { Page, expect } from '@playwright/test'
 
-export async function createLibraryViaApi(page: Page, baseURL: string, name: string, folderPath: string) {
+export async function getToken(page: Page): Promise<string> {
   const token = await page.evaluate(() => localStorage.getItem('token'))
-  console.log('[diag] token present:', !!token)
   if (!token) throw new Error('no auth token in localStorage after login')
-  const headers = { Authorization: `Bearer ${token}` }
+  return token
+}
 
-  const me = await page.request.get(`${baseURL}/audiobookshelf/api/me`, { headers })
-  console.log('[diag] me:', me.status(), await me.text())
-
+export async function createLibrary(page: Page, baseURL: string, token: string, name: string, folderPath: string): Promise<string> {
   const res = await page.request.post(`${baseURL}/audiobookshelf/api/libraries`, {
-    headers,
+    headers: { Authorization: `Bearer ${token}` },
     data: { name, mediaType: 'book', folders: [{ fullPath: folderPath }] }
   })
-  console.log('[diag] create library:', res.status(), await res.text())
-  if (!res.ok()) throw new Error(`create library failed: ${res.status()}`)
-
-  const libs = await page.request.get(`${baseURL}/audiobookshelf/api/libraries`, { headers })
-  console.log('[diag] libraries after create:', libs.status(), await libs.text())
+  if (!res.ok()) throw new Error(`create library failed: ${res.status()} ${await res.text()}`)
+  return (await res.json()).id
 }
 
 export async function uploadBook(page: Page, libraryName: string, filePath: string) {
@@ -31,4 +26,18 @@ export async function uploadBook(page: Page, libraryName: string, filePath: stri
   const uploadButton = page.getByRole('button', { name: 'Upload', exact: true })
   await expect(uploadButton).toBeEnabled({ timeout: 30_000 })
   await uploadButton.click()
+}
+
+export async function waitForFirstItemId(page: Page, baseURL: string, token: string, libraryId: string): Promise<string> {
+  let itemId = ''
+  await expect(async () => {
+    const res = await page.request.get(`${baseURL}/audiobookshelf/api/libraries/${libraryId}/items`, {
+      headers: { Authorization: `Bearer ${token}` }
+    })
+    expect(res.ok()).toBeTruthy()
+    const results = (await res.json()).results
+    expect(results.length).toBeGreaterThan(0)
+    itemId = results[0].id
+  }).toPass({ timeout: 90_000, intervals: [2000] })
+  return itemId
 }

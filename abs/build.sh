@@ -16,6 +16,7 @@ grep -q 'authOpenIDAdminGroups' ${OIDC_JS} || sed -i -f ${DIR}/oidc-group-mappin
 grep -q 'authOpenIDAdminGroups' ${SETTINGS_JS} || sed -i -f ${DIR}/oidc-group-mapping.sed ${SETTINGS_JS}
 grep -q 'adminGroups.includes(group)' ${OIDC_JS}
 grep -q 'rolesInOrderOfPriority.includes(defaultRole)' ${OIDC_JS}
+grep -q 'user.permissions = Database.userModel.getDefaultPermissionsForUserType(userType)' ${OIDC_JS}
 grep -q 'this.authOpenIDAdminGroups = settings.authOpenIDAdminGroups' ${SETTINGS_JS}
 
 cp -r /usr ${NODE_DIR}/usr

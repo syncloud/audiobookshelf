@@ -3,3 +3,4 @@ s@    let userType = rolesInOrderOfPriority.find((role) => groupsList.includes(r
 s@    this.authOpenIDAdvancedPermsClaim = ''@    this.authOpenIDAdvancedPermsClaim = ''\n    this.authOpenIDAdminGroups = ''\n    this.authOpenIDGroupDefaultRole = null@
 s@    this.authOpenIDAdvancedPermsClaim = settings.authOpenIDAdvancedPermsClaim || ''@&\n    this.authOpenIDAdminGroups = settings.authOpenIDAdminGroups || ''\n    this.authOpenIDGroupDefaultRole = settings.authOpenIDGroupDefaultRole || null@
 s@      authOpenIDAdvancedPermsClaim: this.authOpenIDAdvancedPermsClaim, // Do not return to client@&\n      authOpenIDAdminGroups: this.authOpenIDAdminGroups,\n      authOpenIDGroupDefaultRole: this.authOpenIDGroupDefaultRole,@
+s@        user.type = userType@        user.type = userType\n        user.permissions = Database.userModel.getDefaultPermissionsForUserType(userType)@
