@@ -50,10 +50,15 @@ func (i *Installer) Install() error {
 }
 
 func (i *Installer) Configure() error {
-	if i.IsInstalled() {
-		return i.Upgrade()
+	if err := i.StorageChange(); err != nil {
+		return err
 	}
-	return i.Initialize()
+	if !i.IsInstalled() {
+		if err := i.Initialize(); err != nil {
+			return err
+		}
+	}
+	return i.UpdateVersion()
 }
 
 func (i *Installer) IsInstalled() bool {
@@ -62,9 +67,6 @@ func (i *Installer) IsInstalled() bool {
 }
 
 func (i *Installer) Initialize() error {
-	if err := i.StorageChange(); err != nil {
-		return err
-	}
 	storageDir, err := i.platformClient.InitStorage(App, App)
 	if err != nil {
 		return err
@@ -72,17 +74,7 @@ func (i *Installer) Initialize() error {
 	if err := i.ConfigureApp(storageDir); err != nil {
 		return fmt.Errorf("configure app: %w", err)
 	}
-	if err := os.WriteFile(i.installFile, []byte("installed"), 0644); err != nil {
-		return err
-	}
-	return i.UpdateVersion()
-}
-
-func (i *Installer) Upgrade() error {
-	if err := i.StorageChange(); err != nil {
-		return err
-	}
-	return i.UpdateVersion()
+	return os.WriteFile(i.installFile, []byte("installed"), 0644)
 }
 
 func (i *Installer) PreRefresh() error {
