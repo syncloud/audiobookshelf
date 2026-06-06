@@ -46,25 +46,26 @@ type oidcDiscovery struct {
 type Oidc struct {
 	platformClient *platform.Client
 	logger         *zap.Logger
+	dataDir        string
+	client         *http.Client
 }
 
-func NewOidc(platformClient *platform.Client, logger *zap.Logger) *Oidc {
+func NewOidc(platformClient *platform.Client, logger *zap.Logger, dataDir string) *Oidc {
 	return &Oidc{
 		platformClient: platformClient,
 		logger:         logger,
+		dataDir:        dataDir,
+		client:         socketHTTPClient(path.Join(dataDir, "audiobookshelf.sock")),
 	}
 }
 
 func (o *Oidc) ConfigureApp(storageDir string) error {
-	socket := path.Join(DataDir, "audiobookshelf.sock")
-	client := socketHTTPClient(socket)
-
-	isInit, err := o.waitForStatus(client)
+	isInit, err := o.waitForStatus()
 	if err != nil {
 		return err
 	}
 	if !isInit {
-		if err := o.createRootUser(client); err != nil {
+		if err := o.createRootUser(); err != nil {
 			return fmt.Errorf("create root user: %w", err)
 		}
 	}
@@ -96,9 +97,9 @@ func socketHTTPClient(socket string) *http.Client {
 	}
 }
 
-func (o *Oidc) waitForStatus(client *http.Client) (bool, error) {
+func (o *Oidc) waitForStatus() (bool, error) {
 	for attempt := 0; attempt < 60; attempt++ {
-		resp, err := client.Get("http://localhost/status")
+		resp, err := o.client.Get("http://localhost/status")
 		if err == nil {
 			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
@@ -114,7 +115,7 @@ func (o *Oidc) waitForStatus(client *http.Client) (bool, error) {
 	return false, fmt.Errorf("audiobookshelf did not become ready")
 }
 
-func (o *Oidc) createRootUser(client *http.Client) error {
+func (o *Oidc) createRootUser() error {
 	password, err := randomPassword()
 	if err != nil {
 		return err
@@ -125,7 +126,7 @@ func (o *Oidc) createRootUser(client *http.Client) error {
 	if err != nil {
 		return err
 	}
-	resp, err := client.Post("http://localhost/init", "application/json", bytes.NewReader(payload))
+	resp, err := o.client.Post("http://localhost/init", "application/json", bytes.NewReader(payload))
 	if err != nil {
 		return err
 	}
@@ -133,7 +134,7 @@ func (o *Oidc) createRootUser(client *http.Client) error {
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("init returned %s", resp.Status)
 	}
-	passwordFile := path.Join(DataDir, "initial_admin_password")
+	passwordFile := path.Join(o.dataDir, "initial_admin_password")
 	if err := os.WriteFile(passwordFile, []byte(password+"\n"), 0600); err != nil {
 		return err
 	}

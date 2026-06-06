@@ -44,7 +44,7 @@ func New(logger *zap.Logger) *Installer {
 		platformClient:     platformClient,
 		installFile:        path.Join(CommonDir, "installed"),
 		logger:             logger,
-		oidc:               NewOidc(platformClient, logger),
+		oidc:               NewOidc(platformClient, logger, DataDir),
 	}
 }
 
