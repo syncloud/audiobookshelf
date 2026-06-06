@@ -24,13 +24,13 @@ func TestEnableOIDCInDb(t *testing.T) {
 	}
 	db.Close()
 
-	i := &Installer{}
+	o := &Oidc{}
 	d := &oidcDiscovery{
 		Issuer: "https://auth.example.com", AuthorizationEndpoint: "https://auth.example.com/api/oidc/authorization",
 		TokenEndpoint: "https://auth.example.com/api/oidc/token", UserinfoEndpoint: "https://auth.example.com/api/oidc/userinfo",
 		JwksURI: "https://auth.example.com/jwks.json", EndSessionEndpoint: "https://auth.example.com/api/oidc/end-session",
 	}
-	if err := i.enableOIDCInDb(dbPath, d, "s3cr3t"); err != nil {
+	if err := o.enableOIDCInDb(dbPath, d, "s3cr3t"); err != nil {
 		t.Fatal(err)
 	}
 

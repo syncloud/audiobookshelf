@@ -33,15 +33,18 @@ type Installer struct {
 	platformClient     *platform.Client
 	installFile        string
 	logger             *zap.Logger
+	oidc               *Oidc
 }
 
 func New(logger *zap.Logger) *Installer {
+	platformClient := platform.New()
 	return &Installer{
 		newVersionFile:     path.Join(AppDir, "version"),
 		currentVersionFile: path.Join(DataDir, "version"),
-		platformClient:     platform.New(),
+		platformClient:     platformClient,
 		installFile:        path.Join(CommonDir, "installed"),
 		logger:             logger,
+		oidc:               NewOidc(platformClient, logger),
 	}
 }
 
@@ -71,7 +74,7 @@ func (i *Installer) Initialize() error {
 	if err != nil {
 		return err
 	}
-	if err := i.ConfigureApp(storageDir); err != nil {
+	if err := i.oidc.ConfigureApp(storageDir); err != nil {
 		return fmt.Errorf("configure app: %w", err)
 	}
 	return os.WriteFile(i.installFile, []byte("installed"), 0644)

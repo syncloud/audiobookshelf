@@ -10,6 +10,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/syncloud/golib/platform"
 	"go.uber.org/zap"
 	_ "modernc.org/sqlite"
 	"io"
@@ -38,34 +39,46 @@ type oidcDiscovery struct {
 	EndSessionEndpoint    string `json:"end_session_endpoint"`
 }
 
-func (i *Installer) ConfigureApp(storageDir string) error {
+type Oidc struct {
+	platformClient *platform.Client
+	logger         *zap.Logger
+}
+
+func NewOidc(platformClient *platform.Client, logger *zap.Logger) *Oidc {
+	return &Oidc{
+		platformClient: platformClient,
+		logger:         logger,
+	}
+}
+
+func (o *Oidc) ConfigureApp(storageDir string) error {
 	socket := path.Join(DataDir, "audiobookshelf.sock")
 	client := socketHTTPClient(socket)
 
-	isInit, err := i.waitForStatus(client)
+	isInit, err := o.waitForStatus(client)
 	if err != nil {
 		return err
 	}
 	if !isInit {
-		if err := i.createRootUser(client); err != nil {
+		if err := o.createRootUser(client); err != nil {
 			return fmt.Errorf("create root user: %w", err)
 		}
 	}
 
 	dbPath := path.Join(storageDir, "config", "absdatabase.sqlite")
-	secret, err := i.platformClient.RegisterOIDCClient(App, []string{oidcWebCallbackPath, oidcMobileRedirectPath}, true, "client_secret_basic")
+	secret, err := o.platformClient.RegisterOIDCClient(App, []string{oidcWebCallbackPath, oidcMobileRedirectPath}, true, "client_secret_basic")
 	if err != nil {
 		return fmt.Errorf("oidc register: %w", err)
 	}
-	authUrl, err := i.platformClient.GetAppUrl("auth")
+	authUrl, err := o.platformClient.GetAppUrl("auth")
 	if err != nil {
 		return err
 	}
-	discovery := i.discoverOIDC(authUrl)
-	if err := i.enableOIDCInDb(dbPath, discovery, secret); err != nil {
+	discovery := o.discoverOIDC(authUrl)
+	if err := o.enableOIDCInDb(dbPath, discovery, secret); err != nil {
 		return fmt.Errorf("oidc update db: %w", err)
 	}
-	return i.platformClient.RestartService(fmt.Sprint(App, ".abs"))
+	return o.platformClient.RestartService(fmt.Sprint(App, ".abs"))
 }
 
 func socketHTTPClient(socket string) *http.Client {
@@ -79,7 +92,7 @@ func socketHTTPClient(socket string) *http.Client {
 	}
 }
 
-func (i *Installer) waitForStatus(client *http.Client) (bool, error) {
+func (o *Oidc) waitForStatus(client *http.Client) (bool, error) {
 	for attempt := 0; attempt < 60; attempt++ {
 		resp, err := client.Get("http://localhost/status")
 		if err == nil {
@@ -99,7 +112,7 @@ func (i *Installer) waitForStatus(client *http.Client) (bool, error) {
 	return false, fmt.Errorf("audiobookshelf did not become ready")
 }
 
-func (i *Installer) createRootUser(client *http.Client) error {
+func (o *Oidc) createRootUser(client *http.Client) error {
 	password, err := randomPassword()
 	if err != nil {
 		return err
@@ -122,7 +135,7 @@ func (i *Installer) createRootUser(client *http.Client) error {
 	if err := os.WriteFile(passwordFile, []byte(password+"\n"), 0600); err != nil {
 		return err
 	}
-	i.logger.Info("created root admin user", zap.String("username", adminUsername), zap.String("password_file", passwordFile))
+	o.logger.Info("created root admin user", zap.String("username", adminUsername), zap.String("password_file", passwordFile))
 	return nil
 }
 
@@ -134,7 +147,7 @@ func randomPassword() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buffer), nil
 }
 
-func (i *Installer) discoverOIDC(authUrl string) *oidcDiscovery {
+func (o *Oidc) discoverOIDC(authUrl string) *oidcDiscovery {
 	base := strings.TrimRight(authUrl, "/")
 	fallback := &oidcDiscovery{
 		Issuer:                base,
@@ -167,15 +180,15 @@ func (i *Installer) discoverOIDC(authUrl string) *oidcDiscovery {
 				}
 			}
 		} else {
-			i.logger.Info("oidc discovery retry", zap.Error(err))
+			o.logger.Info("oidc discovery retry", zap.Error(err))
 		}
 		time.Sleep(2 * time.Second)
 	}
-	i.logger.Info("oidc discovery unavailable, using authelia defaults", zap.String("issuer", base))
+	o.logger.Info("oidc discovery unavailable, using authelia defaults", zap.String("issuer", base))
 	return fallback
 }
 
-func (i *Installer) enableOIDCInDb(dbPath string, discovery *oidcDiscovery, secret string) error {
+func (o *Oidc) enableOIDCInDb(dbPath string, discovery *oidcDiscovery, secret string) error {
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return err
