@@ -18,7 +18,8 @@ APP_DOMAIN="${NAME}.${DOMAIN}"
 getent hosts $APP_DOMAIN | sed "s/$APP_DOMAIN/auth.$DOMAIN/g" | tee -a /etc/hosts
 cat /etc/hosts
 
-apt-get update -qq >/dev/null 2>&1 && apt-get install -y -qq sshpass openssh-client >/dev/null 2>&1 || true
+apt-get update -qq
+apt-get install -y -qq sshpass openssh-client
 
 cd ${DIR}
 npm ci
