@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test'
-import path from 'path'
+import { fileURLToPath } from 'url'
 import { shoot } from '../helpers/screenshot'
 import { loginViaSyncloud } from '../helpers/auth'
 import { createLibraryViaApi, uploadBook } from '../helpers/abs'
@@ -12,7 +12,7 @@ const password = process.env.PLAYWRIGHT_PASSWORD || 'Password1'
 
 const libraryName = 'Test Library'
 const libraryPath = '/data/audiobookshelf/library'
-const samplePath = path.resolve(__dirname, '..', 'fixtures', 'sample.mp3')
+const samplePath = fileURLToPath(new URL('../fixtures/sample.mp3', import.meta.url))
 
 test('admin uploads a book via the UI and plays it', async ({ page }, info) => {
   ssh(`mkdir -p ${libraryPath} && chown -R audiobookshelf:audiobookshelf ${libraryPath}`)
