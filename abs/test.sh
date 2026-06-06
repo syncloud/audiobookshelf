@@ -2,13 +2,14 @@
 
 DIR=$( cd "$( dirname "$0" )" && pwd )
 
-SNAP=${DIR}/../build/snap
+export SNAP=${DIR}/../build/snap
+export SNAP_DATA=${DIR}/../build/snap-data
 NODE=${SNAP}/node/node.sh
 APP=${SNAP}/abs
 
 ${NODE} --version
 
-. ${SNAP}/node/runtime-env.sh
+. ${DIR}/../config/abs.env
 test -f "${NUSQLITE3_PATH}"
 echo "nusqlite3 present: ${NUSQLITE3_PATH}"
 

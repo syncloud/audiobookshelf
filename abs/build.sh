@@ -25,17 +25,10 @@ cp ${DIR}/node.sh ${NODE_DIR}/node.sh
 cp ${DIR}/ffmpeg.sh ${NODE_DIR}/ffmpeg.sh
 cp ${DIR}/ffprobe.sh ${NODE_DIR}/ffprobe.sh
 
-: "${NUSQLITE3_DIR:=$(dirname "$(find / -name 'libnusqlite3*.so' 2>/dev/null | head -1)")}"
-: "${NUSQLITE3_PATH:=$(find / -name 'libnusqlite3*.so' 2>/dev/null | head -1)}"
-
-cat > ${NODE_DIR}/runtime-env.sh <<EOF
-export NUSQLITE3_DIR=\${SNAP}/node${NUSQLITE3_DIR}
-export NUSQLITE3_PATH=\${SNAP}/node${NUSQLITE3_PATH}
-export FFMPEG_PATH=\${SNAP}/node/ffmpeg.sh
-export FFPROBE_PATH=\${SNAP}/node/ffprobe.sh
-EOF
-
-cat ${NODE_DIR}/runtime-env.sh
+NUSQLITE3_SRC=$(find ${NODE_DIR} -name 'libnusqlite3*.so' 2>/dev/null | head -1)
+test -n "${NUSQLITE3_SRC}"
+ln -sfn "$(dirname "${NUSQLITE3_SRC}" | sed "s|^${NODE_DIR}/||")" ${NODE_DIR}/nusqlite3
+test -f ${NODE_DIR}/nusqlite3/libnusqlite3.so
 
 ${NODE_DIR}/node.sh --version
 du -sh ${APP_OUT} ${NODE_DIR}

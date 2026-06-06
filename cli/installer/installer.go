@@ -17,8 +17,6 @@ type Variables struct {
 	DataDir      string
 	CommonDir    string
 	StorageDir   string
-	ConfigPath   string
-	MetadataPath string
 	Socket       string
 }
 
@@ -156,8 +154,6 @@ func (i *Installer) GenerateConfig(storageDir string) error {
 		DataDir:      DataDir,
 		CommonDir:    CommonDir,
 		StorageDir:   storageDir,
-		ConfigPath:   path.Join(storageDir, "config"),
-		MetadataPath: path.Join(storageDir, "metadata"),
 		Socket:       path.Join(DataDir, "audiobookshelf.sock"),
 	}
 
