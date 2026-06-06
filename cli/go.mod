@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	github.com/otiai10/copy v1.12.0
 	github.com/spf13/cobra v1.7.0
-	github.com/syncloud/golib v1.1.17
+	github.com/syncloud/golib v1.1.19
 	go.uber.org/zap v1.25.0
 	modernc.org/sqlite v1.51.0
 )

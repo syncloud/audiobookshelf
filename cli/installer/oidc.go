@@ -22,10 +22,11 @@ import (
 )
 
 const (
-	platformCACert    = "/var/snap/platform/current/syncloud.ca.crt"
-	oidcCallbackPath  = "/auth/openid/callback"
-	serverSettingsKey = "server-settings"
-	adminUsername     = "admin"
+	platformCACert         = "/var/snap/platform/current/syncloud.ca.crt"
+	oidcWebCallbackPath    = "/auth/openid/callback"
+	oidcMobileRedirectPath = "/auth/openid/mobile-redirect"
+	serverSettingsKey      = "server-settings"
+	adminUsername          = "admin"
 )
 
 type oidcDiscovery struct {
@@ -52,7 +53,7 @@ func (i *Installer) ConfigureApp(storageDir string) error {
 	}
 
 	dbPath := path.Join(storageDir, "config", "absdatabase.sqlite")
-	secret, err := i.platformClient.RegisterOIDCClient(App, oidcCallbackPath, true, "client_secret_basic")
+	secret, err := i.platformClient.RegisterOIDCClient(App, []string{oidcWebCallbackPath, oidcMobileRedirectPath}, true, "client_secret_basic")
 	if err != nil {
 		return fmt.Errorf("oidc register: %w", err)
 	}
