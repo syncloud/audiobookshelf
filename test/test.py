@@ -74,3 +74,28 @@ def test_root_admin_and_openid(app_domain):
 
 def test_admin_password_file(device):
     device.run_ssh('test -s /var/snap/audiobookshelf/current/initial_admin_password', retries=10)
+
+
+def test_remove(device, app):
+    response = device.app_remove(app)
+    assert response.status_code == 200, response.text
+
+
+def test_reinstall(app_archive_path, device_host, device_password):
+    local_install(device_host, device_password, app_archive_path)
+
+
+def test_upgrade(app_archive_path, device_host, device_password):
+    local_install(device_host, device_password, app_archive_path)
+
+
+@pytest.mark.flaky(retries=100, delay=5)
+def test_openid_after_upgrade(app_domain):
+    session = requests.session()
+    status_url = "https://{0}/status".format(app_domain)
+    wait_for_rest(session, status_url, 200, 30)
+    response = session.get(status_url, verify=False)
+    assert response.status_code == 200, response.text
+    status = response.json()
+    assert status.get('isInit'), status
+    assert 'openid' in status.get('authMethods', []), status
