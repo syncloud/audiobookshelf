@@ -19,6 +19,10 @@ grep -q 'rolesInOrderOfPriority.includes(defaultRole)' ${OIDC_JS}
 grep -q 'user.permissions = Database.userModel.getDefaultPermissionsForUserType(userType)' ${OIDC_JS}
 grep -q 'this.authOpenIDAdminGroups = settings.authOpenIDAdminGroups' ${SETTINGS_JS}
 
+FILESYSTEM_JS=${APP_OUT}/server/controllers/FileSystemController.js
+grep -q 'FILE_BROWSER_ROOT' ${FILESYSTEM_JS} || sed -i -f ${DIR}/filebrowser-root.sed ${FILESYSTEM_JS}
+grep -q 'process.env.FILE_BROWSER_ROOT' ${FILESYSTEM_JS}
+
 cp -r /usr ${NODE_DIR}/usr
 cp -r /lib ${NODE_DIR}/lib
 
