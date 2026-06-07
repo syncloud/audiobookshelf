@@ -6,13 +6,17 @@ export async function getToken(page: Page): Promise<string> {
   return token
 }
 
-export async function createLibrary(page: Page, baseURL: string, token: string, name: string, folderPath: string): Promise<string> {
-  const res = await page.request.post(`${baseURL}/audiobookshelf/api/libraries`, {
-    headers: { Authorization: `Bearer ${token}` },
-    data: { name, mediaType: 'book', folders: [{ fullPath: folderPath }] }
-  })
-  if (!res.ok()) throw new Error(`create library failed: ${res.status()} ${await res.text()}`)
-  return (await res.json()).id
+export async function createLibrary(page: Page, token: string, name: string, folderPath: string): Promise<string> {
+  const result = await page.evaluate(async ({ name, folderPath, token }) => {
+    const r = await fetch('/audiobookshelf/api/libraries', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ name, mediaType: 'book', folders: [{ fullPath: folderPath }] })
+    })
+    return { ok: r.ok, status: r.status, body: await r.text() }
+  }, { name, folderPath, token })
+  if (!result.ok) throw new Error(`create library failed: ${result.status} ${result.body}`)
+  return JSON.parse(result.body).id
 }
 
 export async function uploadBook(page: Page, libraryName: string, filePath: string) {
@@ -29,15 +33,15 @@ export async function uploadBook(page: Page, libraryName: string, filePath: stri
   await uploadButton.click()
 }
 
-export async function waitForFirstItemId(page: Page, baseURL: string, token: string, libraryId: string): Promise<string> {
+export async function waitForFirstItemId(page: Page, token: string, libraryId: string): Promise<string> {
   let itemId = ''
   await expect(async () => {
-    const res = await page.request.get(`${baseURL}/audiobookshelf/api/libraries/${libraryId}/items`, {
-      headers: { Authorization: `Bearer ${token}` }
-    })
-    expect(res.ok()).toBeTruthy()
-    const results = (await res.json()).results
-    expect(results.length).toBeGreaterThan(0)
+    const results = await page.evaluate(async ({ libraryId, token }) => {
+      const r = await fetch(`/audiobookshelf/api/libraries/${libraryId}/items`, { headers: { Authorization: `Bearer ${token}` } })
+      if (!r.ok) return null
+      return (await r.json()).results
+    }, { libraryId, token })
+    expect(results && results.length).toBeGreaterThan(0)
     itemId = results[0].id
   }).toPass({ timeout: 90_000, intervals: [2000] })
   return itemId

@@ -10,18 +10,19 @@ const baseURL = `https://audiobookshelf.${domain}`
 const username = process.env.PLAYWRIGHT_USER || 'user'
 const password = process.env.PLAYWRIGHT_PASSWORD || 'Password1'
 
-const libraryPath = '/data/audiobookshelf/library'
 const samplePath = fileURLToPath(new URL('../fixtures/sample.mp3', import.meta.url))
 
 test('admin uploads a book via the UI and plays it', async ({ page }, info) => {
-  const libraryName = `Books ${info.project.name} ${info.retry}`
+  const suffix = `${info.project.name}-${info.retry}`
+  const libraryName = `Books ${suffix}`
+  const libraryPath = `/data/audiobookshelf/library-${suffix}`
   ssh(`mkdir -p ${libraryPath} && chown -R audiobookshelf:audiobookshelf ${libraryPath}`)
 
   await loginViaSyncloud(page, baseURL, username, password)
   await shoot(page, info, 'logged-in')
 
   const token = await getToken(page)
-  const libraryId = await createLibrary(page, baseURL, token, libraryName, libraryPath)
+  const libraryId = await createLibrary(page, token, libraryName, libraryPath)
 
   await page.goto(`${baseURL}/audiobookshelf/library/${libraryId}`)
   await expect(page.getByRole('toolbar', { name: 'Appbar' })).toBeVisible({ timeout: 45_000 })
@@ -29,7 +30,7 @@ test('admin uploads a book via the UI and plays it', async ({ page }, info) => {
   await uploadBook(page, libraryName, samplePath)
   await shoot(page, info, 'uploaded')
 
-  const itemId = await waitForFirstItemId(page, baseURL, token, libraryId)
+  const itemId = await waitForFirstItemId(page, token, libraryId)
   await page.goto(`${baseURL}/audiobookshelf/item/${itemId}`)
 
   const playButton = page.getByRole('button', { name: 'Play', exact: true }).first()
