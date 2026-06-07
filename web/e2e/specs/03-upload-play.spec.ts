@@ -14,7 +14,7 @@ const libraryPath = '/data/audiobookshelf/library'
 const samplePath = fileURLToPath(new URL('../fixtures/sample.mp3', import.meta.url))
 
 test('admin uploads a book via the UI and plays it', async ({ page }, info) => {
-  const libraryName = `Books ${info.retry}`
+  const libraryName = `Books ${info.project.name} ${info.retry}`
   ssh(`mkdir -p ${libraryPath} && chown -R audiobookshelf:audiobookshelf ${libraryPath}`)
 
   await loginViaSyncloud(page, baseURL, username, password)
