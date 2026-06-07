@@ -18,8 +18,9 @@ export async function createLibrary(page: Page, baseURL: string, token: string, 
 export async function uploadBook(page: Page, libraryName: string, filePath: string) {
   await page.getByRole('button', { name: 'Upload Media' }).click()
 
-  await page.getByRole('button', { name: /^Library/ }).click()
-  await page.getByRole('menuitem', { name: libraryName }).click()
+  const content = page.locator('#app-content')
+  await content.getByRole('button', { name: /^Library/ }).click()
+  await content.getByRole('menuitem', { name: libraryName }).click()
 
   await page.locator('input[type="file"]').first().setInputFiles(filePath)
 
