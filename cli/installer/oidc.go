@@ -29,6 +29,8 @@ const (
 	oidcMobileRedirectPath = routerBasePath + "/auth/openid/mobile-redirect"
 	serverSettingsKey      = "server-settings"
 	adminUsername          = "admin"
+	defaultLibraryName     = "Books"
+	defaultLibraryDir      = "library"
 )
 
 type absStatus struct {
@@ -60,7 +62,7 @@ func NewOidc(platformClient *platform.Client, logger *zap.Logger, dataDir string
 	}
 }
 
-func (o *Oidc) Initialize() error {
+func (o *Oidc) Initialize(storageDir string) error {
 	isInit, err := o.waitForStatus()
 	if err != nil {
 		return err
@@ -68,7 +70,18 @@ func (o *Oidc) Initialize() error {
 	if isInit {
 		return nil
 	}
-	return o.createRootUser()
+	password, err := o.createRootUser()
+	if err != nil {
+		return err
+	}
+	token, err := o.login(adminUsername, password)
+	if err != nil {
+		return fmt.Errorf("login: %w", err)
+	}
+	if err := o.createLibrary(token, defaultLibraryName, path.Join(storageDir, defaultLibraryDir)); err != nil {
+		return fmt.Errorf("create default library: %w", err)
+	}
+	return nil
 }
 
 func (o *Oidc) ConfigureApp(storageDir string) error {
@@ -117,30 +130,86 @@ func (o *Oidc) waitForStatus() (bool, error) {
 	return false, fmt.Errorf("audiobookshelf did not become ready")
 }
 
-func (o *Oidc) createRootUser() error {
+func (o *Oidc) createRootUser() (string, error) {
 	password, err := randomPassword()
 	if err != nil {
-		return err
+		return "", err
 	}
 	payload, err := json.Marshal(map[string]interface{}{
 		"newRoot": map[string]string{"username": adminUsername, "password": password},
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
 	resp, err := o.client.Post("http://localhost/init", "application/json", bytes.NewReader(payload))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("init returned %s", resp.Status)
+	}
+	passwordFile := path.Join(o.dataDir, "initial_admin_password")
+	if err := os.WriteFile(passwordFile, []byte(password+"\n"), 0600); err != nil {
+		return "", err
+	}
+	o.logger.Info("created root admin user", zap.String("username", adminUsername), zap.String("password_file", passwordFile))
+	return password, nil
+}
+
+func (o *Oidc) login(username, password string) (string, error) {
+	payload, err := json.Marshal(map[string]string{"username": username, "password": password})
+	if err != nil {
+		return "", err
+	}
+	resp, err := o.client.Post("http://localhost/login", "application/json", bytes.NewReader(payload))
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("login returned %s", resp.Status)
+	}
+	body, _ := io.ReadAll(resp.Body)
+	var lr struct {
+		User struct {
+			AccessToken string `json:"accessToken"`
+		} `json:"user"`
+	}
+	if err := json.Unmarshal(body, &lr); err != nil {
+		return "", err
+	}
+	if lr.User.AccessToken == "" {
+		return "", fmt.Errorf("login returned no access token")
+	}
+	return lr.User.AccessToken, nil
+}
+
+func (o *Oidc) createLibrary(token, name, folderPath string) error {
+	payload, err := json.Marshal(map[string]interface{}{
+		"name":      name,
+		"mediaType": "book",
+		"folders":   []map[string]string{{"fullPath": folderPath}},
+	})
+	if err != nil {
+		return err
+	}
+	req, err := http.NewRequest(http.MethodPost, "http://localhost/api/libraries", bytes.NewReader(payload))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := o.client.Do(req)
 	if err != nil {
 		return err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("init returned %s", resp.Status)
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("create library returned %s: %s", resp.Status, string(body))
 	}
-	passwordFile := path.Join(o.dataDir, "initial_admin_password")
-	if err := os.WriteFile(passwordFile, []byte(password+"\n"), 0600); err != nil {
-		return err
-	}
-	o.logger.Info("created root admin user", zap.String("username", adminUsername), zap.String("password_file", passwordFile))
+	o.logger.Info("created default library", zap.String("name", name), zap.String("path", folderPath))
 	return nil
 }
 

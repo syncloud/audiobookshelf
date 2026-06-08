@@ -61,7 +61,7 @@ func (i *Installer) Configure() error {
 		return err
 	}
 	if !i.IsInstalled() {
-		if err := i.oidc.Initialize(); err != nil {
+		if err := i.oidc.Initialize(storageDir); err != nil {
 			return fmt.Errorf("oidc initialize: %w", err)
 		}
 		if err := os.WriteFile(i.installFile, []byte("installed"), 0644); err != nil {
@@ -105,6 +105,7 @@ func (i *Installer) StorageChange() error {
 	if err := linux.CreateMissingDirs(
 		path.Join(storageDir, "config"),
 		path.Join(storageDir, "metadata"),
+		path.Join(storageDir, "library"),
 	); err != nil {
 		return err
 	}
