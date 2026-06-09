@@ -19,7 +19,20 @@ getent hosts $APP_DOMAIN | sed "s/$APP_DOMAIN/auth.$DOMAIN/g" | tee -a /etc/host
 cat /etc/hosts
 
 apt-get update -qq
-apt-get install -y -qq sshpass openssh-client
+apt-get install -y -qq sshpass openssh-client ffmpeg
+
+# Generate a multi-file audiobook similar to a real one (35 chapter files, ~350MB)
+# to exercise large folder uploads (a single small file never does).
+AUDIOBOOK_DIR="${DIR}/.audiobook/Test Audiobook ${PROJECT}"
+rm -rf "${DIR}/.audiobook"
+mkdir -p "${AUDIOBOOK_DIR}"
+for i in $(seq -w 1 35); do
+  ffmpeg -y -f lavfi -i anullsrc=r=44100:cl=mono -t 300 -b:a 256k \
+    -metadata title="Chapter ${i}" -metadata album="Test Audiobook" -metadata artist="Test Author" \
+    "${AUDIOBOOK_DIR}/${i}.mp3" >/dev/null 2>&1
+done
+du -sh "${AUDIOBOOK_DIR}"
+export PLAYWRIGHT_AUDIOBOOK_DIR="${AUDIOBOOK_DIR}"
 
 cd ${DIR}
 npm ci

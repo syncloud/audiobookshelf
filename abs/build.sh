@@ -23,6 +23,10 @@ FILESYSTEM_JS=${APP_OUT}/server/controllers/FileSystemController.js
 grep -q 'FILE_BROWSER_ROOT' ${FILESYSTEM_JS} || sed -i -f ${DIR}/filebrowser-root.sed ${FILESYSTEM_JS}
 grep -q 'process.env.FILE_BROWSER_ROOT' ${FILESYSTEM_JS}
 
+LOGGER_JS=${APP_OUT}/server/Logger.js
+grep -q 'file logging disabled' ${LOGGER_JS} || sed -i -f ${DIR}/journal-logging.sed ${LOGGER_JS}
+grep -q 'file logging disabled' ${LOGGER_JS}
+
 cp -r /usr ${NODE_DIR}/usr
 cp -r /lib ${NODE_DIR}/lib
 
