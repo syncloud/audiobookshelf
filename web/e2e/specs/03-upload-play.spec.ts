@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test'
 import { fileURLToPath } from 'url'
+import { readFileSync } from 'fs'
 import { shoot } from '../helpers/screenshot'
 import { loginViaSyncloud } from '../helpers/auth'
 import { uploadBook } from '../helpers/abs'
@@ -10,7 +11,7 @@ const username = process.env.PLAYWRIGHT_USER || 'user'
 const password = process.env.PLAYWRIGHT_PASSWORD || 'Password1'
 
 const libraryName = 'Books'
-const samplePath = fileURLToPath(new URL('../fixtures/sample.mp3', import.meta.url))
+const sampleBuffer = readFileSync(fileURLToPath(new URL('../fixtures/sample.mp3', import.meta.url)))
 
 test('admin uploads a book to the default library and plays it', async ({ page }, info) => {
   await loginViaSyncloud(page, baseURL, username, password)
@@ -18,7 +19,9 @@ test('admin uploads a book to the default library and plays it', async ({ page }
   await shoot(page, info, 'logged-in')
 
   // The default 'Books' library created during install must be selectable in the upload dropdown.
-  await uploadBook(page, libraryName, samplePath)
+  // Unique filename per project/attempt so desktop and mobile (same device) don't collide.
+  const fileName = `sample-${info.project.name}-${info.retry}.mp3`
+  await uploadBook(page, libraryName, fileName, sampleBuffer)
   await shoot(page, info, 'uploaded')
 
   // Back to the bookshelf, wait for the scanned book card to appear, open it.
