@@ -25,7 +25,7 @@ test('admin uploads a book to the default library and plays it', async ({ page }
 
   // Back to the bookshelf, wait for the scanned book card to appear, open it.
   await page.locator('#appbar').getByRole('link').first().click()
-  const card = page.locator('#book-card-0')
+  const card = page.locator('#book-card-0').first()
   await expect(card).toBeVisible({ timeout: 90_000 })
   await expect(card).toContainText('Test Book')
   await shoot(page, info, 'bookshelf')
