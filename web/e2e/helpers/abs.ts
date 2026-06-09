@@ -11,7 +11,9 @@ export async function uploadBook(page: Page, libraryName: string, filePath: stri
 
   const content = page.locator('#app-content')
   await content.getByRole('button', { name: /^Library/ }).click()
-  await content.getByRole('menuitem', { name: libraryName }).click()
+  const libraryOption = content.getByRole('menuitem', { name: libraryName })
+  await expect(libraryOption).toBeVisible({ timeout: 30_000 })
+  await libraryOption.click()
 
   await page.locator('input[type="file"]').first().setInputFiles(filePath)
 

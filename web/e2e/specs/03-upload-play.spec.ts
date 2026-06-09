@@ -15,11 +15,9 @@ const samplePath = fileURLToPath(new URL('../fixtures/sample.mp3', import.meta.u
 test('admin uploads a book to the default library and plays it', async ({ page }, info) => {
   await loginViaSyncloud(page, baseURL, username, password)
   await expect(page.getByRole('toolbar', { name: 'Appbar' })).toBeVisible({ timeout: 45_000 })
-
-  // The default library created during install must be visible.
-  await expect(page.locator('#appbar').getByText(libraryName).first()).toBeVisible({ timeout: 30_000 })
   await shoot(page, info, 'logged-in')
 
+  // The default 'Books' library created during install must be selectable in the upload dropdown.
   await uploadBook(page, libraryName, samplePath)
   await shoot(page, info, 'uploaded')
 
