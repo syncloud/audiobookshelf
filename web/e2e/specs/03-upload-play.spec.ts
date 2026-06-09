@@ -17,7 +17,7 @@ test('admin uploads a book to the default library and plays it', async ({ page }
   await expect(page.getByRole('toolbar', { name: 'Appbar' })).toBeVisible({ timeout: 45_000 })
 
   // The default library created during install must be visible.
-  await expect(page.locator('#appbar').getByText(libraryName)).toBeVisible({ timeout: 30_000 })
+  await expect(page.locator('#appbar').getByText(libraryName).first()).toBeVisible({ timeout: 30_000 })
   await shoot(page, info, 'logged-in')
 
   await uploadBook(page, libraryName, samplePath)
