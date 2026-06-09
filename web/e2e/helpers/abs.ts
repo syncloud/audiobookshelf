@@ -25,7 +25,7 @@ export async function uploadBook(page: Page, libraryName: string, fileName: stri
   await expect(page.getByText(/Successfully Uploaded/i)).toBeVisible({ timeout: 60_000 })
 }
 
-export async function uploadFolderFiles(page: Page, libraryName: string, filePaths: string[]) {
+export async function uploadFolder(page: Page, libraryName: string, dirPath: string) {
   await page.getByRole('button', { name: 'Upload Media' }).click()
 
   const content = page.locator('#app-content')
@@ -34,7 +34,9 @@ export async function uploadFolderFiles(page: Page, libraryName: string, filePat
   await expect(libraryOption).toBeVisible({ timeout: 30_000 })
   await libraryOption.click()
 
-  await page.locator('input[webkitdirectory]').setInputFiles(filePaths)
+  // A webkitdirectory input takes the directory path; Playwright sets webkitRelativePath
+  // so abs groups all files into a single book (the real multi-file folder upload).
+  await page.locator('input[webkitdirectory]').setInputFiles(dirPath)
 
   const uploadButton = page.getByRole('button', { name: 'Upload', exact: true })
   await expect(uploadButton).toBeEnabled({ timeout: 60_000 })
