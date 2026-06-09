@@ -23,12 +23,13 @@ test('admin uploads a book to the default library and plays it', async ({ page }
   await uploadBook(page, libraryName, samplePath)
   await shoot(page, info, 'uploaded')
 
-  // Back to the bookshelf, wait for the scanned book to appear, open it.
+  // Back to the bookshelf, wait for the scanned book card to appear, open it.
   await page.locator('#appbar').getByRole('link').first().click()
-  const cover = page.getByAltText(/Test Book/).first()
-  await expect(cover).toBeVisible({ timeout: 90_000 })
+  const card = page.locator('#book-card-0')
+  await expect(card).toBeVisible({ timeout: 90_000 })
+  await expect(card).toContainText('Test Book')
   await shoot(page, info, 'bookshelf')
-  await cover.click()
+  await card.click()
 
   const playButton = page.getByRole('button', { name: 'Play', exact: true }).first()
   await expect(playButton).toBeVisible({ timeout: 30_000 })
