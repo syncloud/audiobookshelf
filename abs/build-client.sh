@@ -9,6 +9,11 @@ rm -rf ${SRC} ${OUT}
 
 git clone --depth 1 --branch v${VERSION} https://github.com/advplyr/audiobookshelf.git ${SRC}
 
+git -C ${SRC} apply ${DIR}/patches/chunked-upload.patch
+grep -q "/api/upload/finalize" ${SRC}/client/pages/upload/index.vue
+grep -q "handleUploadFinalize" ${SRC}/server/controllers/MiscController.js
+grep -q "/upload/chunk" ${SRC}/server/routers/ApiRouter.js
+
 cd ${SRC}/client
 npm ci
 npm run generate

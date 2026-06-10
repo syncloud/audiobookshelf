@@ -1,0 +1,305 @@
+diff --git a/client/pages/upload/index.vue b/client/pages/upload/index.vue
+index adc21ff..5b89d35 100644
+--- a/client/pages/upload/index.vue
++++ b/client/pages/upload/index.vue
+@@ -307,37 +307,87 @@ export default {
+       }
+     },
+     async uploadItem(item) {
+-      var form = new FormData()
+-      form.set('title', item.title)
+-      if (!this.selectedLibraryIsPodcast) {
+-        form.set('author', item.author || '')
+-        form.set('series', item.series || '')
+-      }
+-      form.set('library', this.selectedLibraryId)
+-      form.set('folder', this.selectedFolderId)
++      const chunkSize = 5 * 1024 * 1024
++      const uploadId = `${Date.now()}-${Math.random().toString(36).slice(2)}`
++      const totalBytes = item.files.reduce((sum, file) => sum + file.size, 0)
++      let sentBytes = 0
+ 
+-      var index = 0
+-      item.files.forEach((file) => {
+-        form.set(`${index++}`, file)
+-      })
++      for (let fileIndex = 0; fileIndex < item.files.length; fileIndex++) {
++        const file = item.files[fileIndex]
++        const numChunks = Math.max(1, Math.ceil(file.size / chunkSize))
++
++        let uploadedChunks = []
++        try {
++          const existing = await this.$axios.$get(`/api/upload/chunk/${uploadId}/${fileIndex}`)
++          uploadedChunks = existing.chunks || []
++        } catch (error) {
++          uploadedChunks = []
++        }
++
++        for (let chunkIndex = 0; chunkIndex < numChunks; chunkIndex++) {
++          const start = chunkIndex * chunkSize
++          const end = Math.min(file.size, start + chunkSize)
++          if (uploadedChunks.includes(chunkIndex)) {
++            sentBytes += end - start
++            this.updateItemCardProgress(item.index, { loaded: sentBytes, total: totalBytes })
++            continue
++          }
+ 
+-      const config = {
+-        onUploadProgress: (progressEvent) => {
+-          if (progressEvent.lengthComputable) {
+-            const progress = {
+-              loaded: progressEvent.loaded,
+-              total: progressEvent.total
++          const form = new FormData()
++          form.set('uploadId', uploadId)
++          form.set('fileIndex', `${fileIndex}`)
++          form.set('chunkIndex', `${chunkIndex}`)
++          form.set('numChunks', `${numChunks}`)
++          form.set('chunk', file.slice(start, end), file.name)
++
++          let attempt = 0
++          while (true) {
++            try {
++              await this.$axios.$post('/api/upload/chunk', form, {
++                onUploadProgress: (progressEvent) => {
++                  if (progressEvent.lengthComputable) {
++                    this.updateItemCardProgress(item.index, { loaded: sentBytes + progressEvent.loaded, total: totalBytes })
++                  }
++                }
++              })
++              break
++            } catch (error) {
++              attempt++
++              if (attempt >= 5) {
++                console.error('Failed to upload chunk', error)
++                this.$toast.error(error.response?.data || 'Oops, something went wrong...')
++                return false
++              }
++              await new Promise((resolve) => setTimeout(resolve, 1000 * attempt))
+             }
+-            this.updateItemCardProgress(item.index, progress)
+           }
++
++          sentBytes += end - start
++          this.updateItemCardProgress(item.index, { loaded: sentBytes, total: totalBytes })
+         }
+       }
+ 
++      const payload = {
++        uploadId,
++        title: item.title,
++        library: this.selectedLibraryId,
++        folder: this.selectedFolderId,
++        files: item.files.map((file, index) => ({
++          index,
++          name: file.name,
++          numChunks: Math.max(1, Math.ceil(file.size / chunkSize))
++        }))
++      }
++      if (!this.selectedLibraryIsPodcast) {
++        payload.author = item.author || ''
++        payload.series = item.series || ''
++      }
++
+       return this.$axios
+-        .$post('/api/upload', form, config)
++        .$post('/api/upload/finalize', payload)
+         .then(() => true)
+         .catch((error) => {
+-          console.error('Failed to upload item', error)
++          console.error('Failed to finalize upload', error)
+           this.$toast.error(error.response?.data || 'Oops, something went wrong...')
+           return false
+         })
+diff --git a/server/controllers/MiscController.js b/server/controllers/MiscController.js
+index 591f8cc..f3ce008 100644
+--- a/server/controllers/MiscController.js
++++ b/server/controllers/MiscController.js
+@@ -15,6 +15,48 @@ const { sanitizeFilename } = require('../utils/fileUtils')
+ const TaskManager = require('../managers/TaskManager')
+ const adminStats = require('../utils/queries/adminStats')
+ 
++function getUploadSessionDir(uploadId) {
++  if (!uploadId || typeof uploadId !== 'string' || !/^[a-z0-9-]+$/i.test(uploadId)) {
++    return null
++  }
++  return Path.join(global.MetadataPath, 'uploads', uploadId)
++}
++
++function getUploadChunkDir(uploadId, fileIndex) {
++  const sessionDir = getUploadSessionDir(uploadId)
++  if (!sessionDir || !/^\d+$/.test(`${fileIndex}`)) {
++    return null
++  }
++  return Path.join(sessionDir, `${Number(fileIndex)}`)
++}
++
++async function assembleChunks(chunkDir, numChunks, destPath) {
++  for (let i = 0; i < numChunks; i++) {
++    if (!(await fs.pathExists(Path.join(chunkDir, `${i}`)))) {
++      return false
++    }
++  }
++  const writeStream = fs.createWriteStream(destPath)
++  try {
++    for (let i = 0; i < numChunks; i++) {
++      const chunkPath = Path.join(chunkDir, `${i}`)
++      await new Promise((resolve, reject) => {
++        const readStream = fs.createReadStream(chunkPath)
++        readStream.on('error', reject)
++        readStream.on('end', resolve)
++        readStream.pipe(writeStream, { end: false })
++      })
++    }
++  } finally {
++    writeStream.end()
++  }
++  await new Promise((resolve, reject) => {
++    writeStream.on('close', resolve)
++    writeStream.on('error', reject)
++  })
++  return true
++}
++
+ /**
+  * @typedef RequestUserObject
+  * @property {import('../models/User')} user
+@@ -99,6 +141,124 @@ class MiscController {
+     res.sendStatus(200)
+   }
+ 
++  /**
++   * GET: /api/upload/chunk/:uploadId/:fileIndex
++   * List chunk indices already stored for a file, so the client can resume
++   *
++   * @param {RequestWithUser} req
++   * @param {Response} res
++   */
++  async getUploadChunks(req, res) {
++    if (!req.user.canUpload) {
++      return res.sendStatus(403)
++    }
++    const chunkDir = getUploadChunkDir(req.params.uploadId, req.params.fileIndex)
++    if (!chunkDir) {
++      return res.status(400).send('Invalid upload reference')
++    }
++    if (!(await fs.pathExists(chunkDir))) {
++      return res.json({ chunks: [] })
++    }
++    const entries = await fs.readdir(chunkDir)
++    const chunks = entries.map((name) => Number(name)).filter((n) => Number.isInteger(n))
++    res.json({ chunks })
++  }
++
++  /**
++   * POST: /api/upload/chunk
++   * Receive a single chunk of a resumable upload
++   *
++   * @param {RequestWithUser} req
++   * @param {Response} res
++   */
++  async handleUploadChunk(req, res) {
++    if (!req.user.canUpload) {
++      Logger.warn(`User "${req.user.username}" attempted to upload without permission`)
++      return res.sendStatus(403)
++    }
++    if (!req.files || !req.files.chunk) {
++      return res.status(400).send('No chunk in request')
++    }
++    const { uploadId, fileIndex, chunkIndex } = req.body
++    const chunkDir = getUploadChunkDir(uploadId, fileIndex)
++    if (!chunkDir || !/^\d+$/.test(`${chunkIndex}`)) {
++      return res.status(400).send('Invalid chunk request')
++    }
++    await fs.ensureDir(chunkDir)
++    await req.files.chunk.mv(Path.join(chunkDir, `${Number(chunkIndex)}`))
++    res.sendStatus(200)
++  }
++
++  /**
++   * POST: /api/upload/finalize
++   * Assemble all received chunks into files and move them to the library folder
++   *
++   * @param {RequestWithUser} req
++   * @param {Response} res
++   */
++  async handleUploadFinalize(req, res) {
++    if (!req.user.canUpload) {
++      Logger.warn(`User "${req.user.username}" attempted to upload without permission`)
++      return res.sendStatus(403)
++    }
++
++    let { uploadId, title, author, series, folder: folderId, library: libraryId, files } = req.body
++    if (!libraryId || !folderId || typeof libraryId !== 'string' || typeof folderId !== 'string' || !title || typeof title !== 'string' || !Array.isArray(files) || !files.length) {
++      return res.status(400).send('Invalid request body')
++    }
++    const sessionDir = getUploadSessionDir(uploadId)
++    if (!sessionDir) {
++      return res.status(400).send('Invalid upload reference')
++    }
++    if (!series || typeof series !== 'string') {
++      series = null
++    }
++    if (!author || typeof author !== 'string') {
++      author = null
++    }
++
++    const library = await Database.libraryModel.findByIdWithFolders(libraryId)
++    if (!library) {
++      return res.status(404).send('Library not found')
++    }
++
++    if (!req.user.checkCanAccessLibrary(library.id)) {
++      Logger.error(`[MiscController] User "${req.user.username}" attempting to upload to library "${library.id}" without access`)
++      return res.sendStatus(403)
++    }
++
++    const folder = library.libraryFolders.find((fold) => fold.id === folderId)
++    if (!folder) {
++      return res.status(404).send('Folder not found')
++    }
++
++    const outputDirectoryParts = library.isPodcast ? [title] : [author, series, title]
++    const cleanedOutputDirectoryParts = outputDirectoryParts.filter(Boolean).map((part) => sanitizeFilename(part))
++    const outputDirectory = Path.join(...[folder.path, ...cleanedOutputDirectoryParts])
++
++    await fs.ensureDir(outputDirectory)
++
++    Logger.info(`Assembling ${files.length} uploaded files to`, outputDirectory)
++
++    for (const file of files) {
++      const chunkDir = getUploadChunkDir(uploadId, file.index)
++      const numChunks = Number(file.numChunks)
++      if (!chunkDir || !file.name || typeof file.name !== 'string' || !Number.isInteger(numChunks) || numChunks < 1) {
++        await fs.remove(sessionDir)
++        return res.status(400).send('Invalid file entry')
++      }
++      const destPath = Path.join(outputDirectory, sanitizeFilename(file.name))
++      const assembled = await assembleChunks(chunkDir, numChunks, destPath)
++      if (!assembled) {
++        await fs.remove(sessionDir)
++        return res.status(400).send('Missing chunks')
++      }
++    }
++
++    await fs.remove(sessionDir)
++    res.sendStatus(200)
++  }
++
+   /**
+    * GET: /api/tasks
+    * Get tasks for task manager
+diff --git a/server/routers/ApiRouter.js b/server/routers/ApiRouter.js
+index e89b364..7884f4c 100644
+--- a/server/routers/ApiRouter.js
++++ b/server/routers/ApiRouter.js
+@@ -339,6 +339,9 @@ class ApiRouter {
+     // Misc Routes
+     //
+     this.router.post('/upload', MiscController.handleUpload.bind(this))
++    this.router.post('/upload/chunk', MiscController.handleUploadChunk.bind(this))
++    this.router.get('/upload/chunk/:uploadId/:fileIndex', MiscController.getUploadChunks.bind(this))
++    this.router.post('/upload/finalize', MiscController.handleUploadFinalize.bind(this))
+     this.router.get('/tasks', MiscController.getTasks.bind(this))
+     this.router.patch('/settings', MiscController.updateServerSettings.bind(this))
+     this.router.patch('/sorting-prefixes', MiscController.updateSortingPrefixes.bind(this))

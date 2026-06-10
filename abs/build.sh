@@ -15,6 +15,12 @@ rm -rf ${APP_OUT}/client/dist
 mkdir -p ${APP_OUT}/client/dist
 cp -r ${DIR}/../build/client-dist/. ${APP_OUT}/client/dist/
 
+# Carry the chunked/resumable upload server changes from the patched source clone
+cp ${DIR}/../build/abs-src/server/controllers/MiscController.js ${APP_OUT}/server/controllers/MiscController.js
+cp ${DIR}/../build/abs-src/server/routers/ApiRouter.js ${APP_OUT}/server/routers/ApiRouter.js
+grep -q 'handleUploadFinalize' ${APP_OUT}/server/controllers/MiscController.js
+grep -q '/upload/chunk' ${APP_OUT}/server/routers/ApiRouter.js
+
 OIDC_JS=${APP_OUT}/server/auth/OidcAuthStrategy.js
 SETTINGS_JS=${APP_OUT}/server/objects/settings/ServerSettings.js
 grep -q 'authOpenIDAdminGroups' ${OIDC_JS} || sed -i -f ${DIR}/oidc-group-mapping.sed ${OIDC_JS}
