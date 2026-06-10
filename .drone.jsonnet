@@ -36,6 +36,14 @@ local build(arch, ui) = [{
     for distro in distros
   ] + [
     {
+      name: 'client',
+      image: 'node:20',
+      commands: [
+        './abs/build-client.sh ' + version,
+      ],
+    },
+  ] + [
+    {
       name: 'abs',
       image: 'advplyr/audiobookshelf:' + version,
       commands: [

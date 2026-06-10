@@ -10,6 +10,11 @@ mkdir -p ${APP_OUT} ${NODE_DIR}
 
 cp -r /app/. ${APP_OUT}
 
+# Replace the image's prebuilt client with the one we build from source (so we can carry client patches)
+rm -rf ${APP_OUT}/client/dist
+mkdir -p ${APP_OUT}/client/dist
+cp -r ${DIR}/../build/client-dist/. ${APP_OUT}/client/dist/
+
 OIDC_JS=${APP_OUT}/server/auth/OidcAuthStrategy.js
 SETTINGS_JS=${APP_OUT}/server/objects/settings/ServerSettings.js
 grep -q 'authOpenIDAdminGroups' ${OIDC_JS} || sed -i -f ${DIR}/oidc-group-mapping.sed ${OIDC_JS}
