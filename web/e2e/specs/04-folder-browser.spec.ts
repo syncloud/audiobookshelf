@@ -21,7 +21,6 @@ test('folder browser is limited to the app storage root', async ({ page }) => {
   await loginViaSyncloud(page, baseURL, username, password)
   const token = await getToken(page)
 
-  // Default browse, and attempts to escape to the filesystem root, all stay under the storage root.
   for (const query of ['', '?path=/', '?path=/usr']) {
     const paths = await browse(page, token, query)
     expect(paths.length).toBeGreaterThan(0)

@@ -21,8 +21,14 @@ cat /etc/hosts
 apt-get update -qq
 apt-get install -y -qq sshpass openssh-client ffmpeg
 
-# Generate a multi-file audiobook similar to a real one (35 chapter files, ~350MB)
-# to exercise large folder uploads (a single small file never does).
+BOOK_DIR="${DIR}/.book"
+rm -rf "${BOOK_DIR}"
+mkdir -p "${BOOK_DIR}"
+ffmpeg -y -f lavfi -i anullsrc=r=44100:cl=mono -t 60 -b:a 128k \
+  -metadata title="Test Book ${PROJECT}" -metadata album="Test Book ${PROJECT}" -metadata artist="Test Author" \
+  "${BOOK_DIR}/Test Book ${PROJECT}.mp3" >/dev/null 2>&1
+export PLAYWRIGHT_BOOK_FILE="${BOOK_DIR}/Test Book ${PROJECT}.mp3"
+
 AUDIOBOOK_DIR="${DIR}/.audiobook/Test Audiobook ${PROJECT}"
 rm -rf "${DIR}/.audiobook"
 mkdir -p "${AUDIOBOOK_DIR}"
