@@ -36,10 +36,18 @@ local build(arch, ui) = [{
     for distro in distros
   ] + [
     {
+      name: 'patch source',
+      image: 'node:20',
+      commands: [
+        './abs/patch-source.sh ' + version,
+      ],
+    },
+  ] + [
+    {
       name: 'client',
       image: 'node:20',
       commands: [
-        './abs/build-client.sh ' + version,
+        './abs/build-client.sh',
       ],
     },
   ] + [
