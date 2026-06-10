@@ -30,19 +30,15 @@ const (
 	defaultLibraryDir      = "library"
 )
 
-type absStatus struct {
-	IsInit bool `json:"isInit"`
-}
-
-type Oidc struct {
+type Abs struct {
 	platformClient *platform.Client
 	logger         *zap.Logger
 	dataDir        string
 	client         *http.Client
 }
 
-func NewOidc(platformClient *platform.Client, logger *zap.Logger, dataDir string) *Oidc {
-	return &Oidc{
+func NewAbs(platformClient *platform.Client, logger *zap.Logger, dataDir string) *Abs {
+	return &Abs{
 		platformClient: platformClient,
 		logger:         logger,
 		dataDir:        dataDir,
@@ -50,42 +46,42 @@ func NewOidc(platformClient *platform.Client, logger *zap.Logger, dataDir string
 	}
 }
 
-func (o *Oidc) Initialize(storageDir string) error {
-	isInit, err := o.waitForStatus()
+func (a *Abs) Initialize(storageDir string) error {
+	isInit, err := a.waitForStatus()
 	if err != nil {
 		return err
 	}
 	if isInit {
 		return nil
 	}
-	password, err := o.createRootUser()
+	password, err := a.createRootUser()
 	if err != nil {
 		return err
 	}
-	token, err := o.login(adminUsername, password)
+	token, err := a.login(adminUsername, password)
 	if err != nil {
 		return fmt.Errorf("login: %w", err)
 	}
-	if err := o.createLibrary(token, defaultLibraryName, path.Join(storageDir, defaultLibraryDir)); err != nil {
+	if err := a.createLibrary(token, defaultLibraryName, path.Join(storageDir, defaultLibraryDir)); err != nil {
 		return fmt.Errorf("create default library: %w", err)
 	}
 	return nil
 }
 
-func (o *Oidc) ConfigureApp() error {
-	dbPath := path.Join(o.dataDir, "config", "absdatabase.sqlite")
-	secret, err := o.platformClient.RegisterOIDCClient(App, []string{oidcWebCallbackPath, oidcMobileRedirectPath}, true, "client_secret_basic")
+func (a *Abs) ConfigureApp() error {
+	dbPath := path.Join(a.dataDir, "config", "absdatabase.sqlite")
+	secret, err := a.platformClient.RegisterOIDCClient(App, []string{oidcWebCallbackPath, oidcMobileRedirectPath}, true, "client_secret_basic")
 	if err != nil {
 		return fmt.Errorf("oidc register: %w", err)
 	}
-	authUrl, err := o.platformClient.GetAppUrl("auth")
+	authUrl, err := a.platformClient.GetAppUrl("auth")
 	if err != nil {
 		return err
 	}
-	if err := o.enableOIDCInDb(dbPath, authUrl, secret); err != nil {
+	if err := a.enableOIDCInDb(dbPath, authUrl, secret); err != nil {
 		return fmt.Errorf("oidc update db: %w", err)
 	}
-	return o.platformClient.RestartService(fmt.Sprint(App, ".abs"))
+	return a.platformClient.RestartService(fmt.Sprint(App, ".abs"))
 }
 
 func socketHTTPClient(socket string) *http.Client {
@@ -99,14 +95,14 @@ func socketHTTPClient(socket string) *http.Client {
 	}
 }
 
-func (o *Oidc) waitForStatus() (bool, error) {
+func (a *Abs) waitForStatus() (bool, error) {
 	for attempt := 0; attempt < 60; attempt++ {
-		resp, err := o.client.Get("http://localhost/status")
+		resp, err := a.client.Get("http://localhost/status")
 		if err == nil {
 			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
-				var status absStatus
+				var status statusResponse
 				if json.Unmarshal(body, &status) == nil {
 					return status.IsInit, nil
 				}
@@ -117,18 +113,16 @@ func (o *Oidc) waitForStatus() (bool, error) {
 	return false, fmt.Errorf("audiobookshelf did not become ready")
 }
 
-func (o *Oidc) createRootUser() (string, error) {
+func (a *Abs) createRootUser() (string, error) {
 	password, err := randomPassword()
 	if err != nil {
 		return "", err
 	}
-	payload, err := json.Marshal(map[string]interface{}{
-		"newRoot": map[string]string{"username": adminUsername, "password": password},
-	})
+	payload, err := json.Marshal(newRootRequest{NewRoot: credentials{Username: adminUsername, Password: password}})
 	if err != nil {
 		return "", err
 	}
-	resp, err := o.client.Post("http://localhost/init", "application/json", bytes.NewReader(payload))
+	resp, err := a.client.Post("http://localhost/init", "application/json", bytes.NewReader(payload))
 	if err != nil {
 		return "", err
 	}
@@ -136,20 +130,20 @@ func (o *Oidc) createRootUser() (string, error) {
 	if resp.StatusCode != http.StatusOK {
 		return "", fmt.Errorf("init returned %s", resp.Status)
 	}
-	passwordFile := path.Join(o.dataDir, "initial_admin_password")
+	passwordFile := path.Join(a.dataDir, "initial_admin_password")
 	if err := os.WriteFile(passwordFile, []byte(password+"\n"), 0600); err != nil {
 		return "", err
 	}
-	o.logger.Info("created root admin user", zap.String("username", adminUsername), zap.String("password_file", passwordFile))
+	a.logger.Info("created root admin user", zap.String("username", adminUsername), zap.String("password_file", passwordFile))
 	return password, nil
 }
 
-func (o *Oidc) login(username, password string) (string, error) {
-	payload, err := json.Marshal(map[string]string{"username": username, "password": password})
+func (a *Abs) login(username, password string) (string, error) {
+	payload, err := json.Marshal(credentials{Username: username, Password: password})
 	if err != nil {
 		return "", err
 	}
-	resp, err := o.client.Post("http://localhost/login", "application/json", bytes.NewReader(payload))
+	resp, err := a.client.Post("http://localhost/login", "application/json", bytes.NewReader(payload))
 	if err != nil {
 		return "", err
 	}
@@ -158,11 +152,7 @@ func (o *Oidc) login(username, password string) (string, error) {
 		return "", fmt.Errorf("login returned %s", resp.Status)
 	}
 	body, _ := io.ReadAll(resp.Body)
-	var lr struct {
-		User struct {
-			AccessToken string `json:"accessToken"`
-		} `json:"user"`
-	}
+	var lr loginResponse
 	if err := json.Unmarshal(body, &lr); err != nil {
 		return "", err
 	}
@@ -172,11 +162,11 @@ func (o *Oidc) login(username, password string) (string, error) {
 	return lr.User.AccessToken, nil
 }
 
-func (o *Oidc) createLibrary(token, name, folderPath string) error {
-	payload, err := json.Marshal(map[string]interface{}{
-		"name":      name,
-		"mediaType": "book",
-		"folders":   []map[string]string{{"fullPath": folderPath}},
+func (a *Abs) createLibrary(token, name, folderPath string) error {
+	payload, err := json.Marshal(createLibraryRequest{
+		Name:      name,
+		MediaType: "book",
+		Folders:   []libraryFolder{{FullPath: folderPath}},
 	})
 	if err != nil {
 		return err
@@ -187,7 +177,7 @@ func (o *Oidc) createLibrary(token, name, folderPath string) error {
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
-	resp, err := o.client.Do(req)
+	resp, err := a.client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -196,7 +186,7 @@ func (o *Oidc) createLibrary(token, name, folderPath string) error {
 		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("create library returned %s: %s", resp.Status, string(body))
 	}
-	o.logger.Info("created default library", zap.String("name", name), zap.String("path", folderPath))
+	a.logger.Info("created default library", zap.String("name", name), zap.String("path", folderPath))
 	return nil
 }
 
@@ -208,7 +198,7 @@ func randomPassword() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buffer), nil
 }
 
-func (o *Oidc) enableOIDCInDb(dbPath string, authUrl string, secret string) error {
+func (a *Abs) enableOIDCInDb(dbPath string, authUrl string, secret string) error {
 	base := strings.TrimRight(authUrl, "/")
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {

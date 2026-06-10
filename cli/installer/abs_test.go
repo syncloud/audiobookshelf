@@ -24,7 +24,7 @@ func TestEnableOIDCInDb(t *testing.T) {
 	}
 	db.Close()
 
-	o := &Oidc{}
+	o := &Abs{}
 	if err := o.enableOIDCInDb(dbPath, "https://auth.example.com/", "s3cr3t"); err != nil {
 		t.Fatal(err)
 	}

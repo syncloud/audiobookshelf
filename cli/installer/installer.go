@@ -33,7 +33,7 @@ type Installer struct {
 	platformClient     *platform.Client
 	installFile        string
 	logger             *zap.Logger
-	oidc               *Oidc
+	abs                *Abs
 }
 
 func New(logger *zap.Logger) *Installer {
@@ -44,7 +44,7 @@ func New(logger *zap.Logger) *Installer {
 		platformClient:     platformClient,
 		installFile:        path.Join(CommonDir, "installed"),
 		logger:             logger,
-		oidc:               NewOidc(platformClient, logger, DataDir),
+		abs:                NewAbs(platformClient, logger, DataDir),
 	}
 }
 
@@ -61,14 +61,14 @@ func (i *Installer) Configure() error {
 		return err
 	}
 	if !i.IsInstalled() {
-		if err := i.oidc.Initialize(storageDir); err != nil {
+		if err := i.abs.Initialize(storageDir); err != nil {
 			return fmt.Errorf("oidc initialize: %w", err)
 		}
 		if err := os.WriteFile(i.installFile, []byte("installed"), 0644); err != nil {
 			return err
 		}
 	}
-	if err := i.oidc.ConfigureApp(); err != nil {
+	if err := i.abs.ConfigureApp(); err != nil {
 		return fmt.Errorf("configure app: %w", err)
 	}
 	return i.UpdateVersion()
