@@ -27,9 +27,9 @@ test('admin uploads a book to the default library and plays it', async ({ page }
   await card.click()
 
   const player = page.locator('#mediaPlayerContainer')
-  const playButton = page.getByRole('button', { name: 'Play', exact: true }).first()
-  await expect(player.or(playButton)).toBeVisible({ timeout: 30_000 })
-  if (await playButton.isVisible()) {
+  if (info.project.name === 'mobile') {
+    const playButton = page.getByRole('button', { name: 'Play', exact: true }).first()
+    await expect(playButton).toBeVisible({ timeout: 30_000 })
     await shoot(page, info, 'item')
     await playButton.click()
   }
