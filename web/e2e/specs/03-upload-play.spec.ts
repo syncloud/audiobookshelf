@@ -12,8 +12,6 @@ const libraryName = 'Books'
 const bookFile = process.env.PLAYWRIGHT_BOOK_FILE || ''
 
 test('admin uploads a book to the default library and plays it', async ({ page }, info) => {
-  test.skip(!bookFile, 'PLAYWRIGHT_BOOK_FILE not set')
-
   await loginViaSyncloud(page, baseURL, username, password)
   await expect(page.getByRole('toolbar', { name: 'Appbar' })).toBeVisible({ timeout: 45_000 })
   await shoot(page, info, 'logged-in')

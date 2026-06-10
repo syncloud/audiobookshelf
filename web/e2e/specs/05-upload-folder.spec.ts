@@ -12,7 +12,6 @@ const libraryName = 'Books'
 const audiobookDir = process.env.PLAYWRIGHT_AUDIOBOOK_DIR || ''
 
 test('admin uploads a multi-file audiobook folder', async ({ page }, info) => {
-  test.skip(!audiobookDir, 'PLAYWRIGHT_AUDIOBOOK_DIR not set')
   test.setTimeout(600_000)
 
   await loginViaSyncloud(page, baseURL, username, password)
