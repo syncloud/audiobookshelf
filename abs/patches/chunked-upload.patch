@@ -112,18 +112,22 @@ index adc21ff..5b89d35 100644
            return false
          })
 diff --git a/server/controllers/MiscController.js b/server/controllers/MiscController.js
-index 591f8cc..f3ce008 100644
+index 591f8cc..9498141 100644
 --- a/server/controllers/MiscController.js
 +++ b/server/controllers/MiscController.js
-@@ -15,6 +15,48 @@ const { sanitizeFilename } = require('../utils/fileUtils')
+@@ -15,6 +15,52 @@ const { sanitizeFilename } = require('../utils/fileUtils')
  const TaskManager = require('../managers/TaskManager')
  const adminStats = require('../utils/queries/adminStats')
  
++function getUploadsRoot() {
++  return process.env.UPLOAD_TEMP_DIR || Path.join(global.MetadataPath, 'uploads')
++}
++
 +function getUploadSessionDir(uploadId) {
 +  if (!uploadId || typeof uploadId !== 'string' || !/^[a-z0-9-]+$/i.test(uploadId)) {
 +    return null
 +  }
-+  return Path.join(global.MetadataPath, 'uploads', uploadId)
++  return Path.join(getUploadsRoot(), uploadId)
 +}
 +
 +function getUploadChunkDir(uploadId, fileIndex) {
@@ -164,7 +168,7 @@ index 591f8cc..f3ce008 100644
  /**
   * @typedef RequestUserObject
   * @property {import('../models/User')} user
-@@ -99,6 +141,124 @@ class MiscController {
+@@ -99,6 +145,124 @@ class MiscController {
      res.sendStatus(200)
    }
  
@@ -305,10 +309,10 @@ index e89b364..7884f4c 100644
      this.router.patch('/sorting-prefixes', MiscController.updateSortingPrefixes.bind(this))
 diff --git a/test/server/controllers/MiscController.test.js b/test/server/controllers/MiscController.test.js
 new file mode 100644
-index 0000000..b9f0254
+index 0000000..d76a192
 --- /dev/null
 +++ b/test/server/controllers/MiscController.test.js
-@@ -0,0 +1,156 @@
+@@ -0,0 +1,171 @@
 +const { expect } = require('chai')
 +const sinon = require('sinon')
 +const Path = require('path')
@@ -463,5 +467,20 @@ index 0000000..b9f0254
 +    const res = mockResponse()
 +    await MiscController.handleUploadChunk({ user: { canUpload: false, username: 'reader' }, body: {}, files: {} }, res)
 +    expect(res.statusCode).to.equal(403)
++  })
++
++  it('stages chunks under UPLOAD_TEMP_DIR when set', async () => {
++    const altRoot = await fs.mkdtemp(Path.join(os.tmpdir(), 'abs-up-'))
++    process.env.UPLOAD_TEMP_DIR = altRoot
++    try {
++      const uploadId = 'session-env'
++      const res = mockResponse()
++      await MiscController.handleUploadChunk(chunkRequest(uploadId, 0, 0, 1, Buffer.from('Z')), res)
++      expect(res.statusCode).to.equal(200)
++      expect(await fs.pathExists(Path.join(altRoot, uploadId, '0', '0'))).to.equal(true)
++    } finally {
++      delete process.env.UPLOAD_TEMP_DIR
++      await fs.remove(altRoot)
++    }
 +  })
 +})

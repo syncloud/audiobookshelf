@@ -12,12 +12,12 @@ import (
 )
 
 type Variables struct {
-	App          string
-	AppDir       string
-	DataDir      string
-	CommonDir    string
-	StorageDir   string
-	Socket       string
+	App        string
+	AppDir     string
+	DataDir    string
+	CommonDir  string
+	StorageDir string
+	Socket     string
 }
 
 const (
@@ -68,7 +68,7 @@ func (i *Installer) Configure() error {
 			return err
 		}
 	}
-	if err := i.oidc.ConfigureApp(storageDir); err != nil {
+	if err := i.oidc.ConfigureApp(); err != nil {
 		return fmt.Errorf("configure app: %w", err)
 	}
 	return i.UpdateVersion()
@@ -103,10 +103,18 @@ func (i *Installer) StorageChange() error {
 		return err
 	}
 	if err := linux.CreateMissingDirs(
-		path.Join(storageDir, "config"),
-		path.Join(storageDir, "metadata"),
-		path.Join(storageDir, "library"),
+		path.Join(DataDir, "config"),
+		path.Join(DataDir, "metadata"),
 	); err != nil {
+		return err
+	}
+	if err := linux.CreateMissingDirs(
+		path.Join(storageDir, "library"),
+		path.Join(storageDir, "uploads"),
+	); err != nil {
+		return err
+	}
+	if err := linux.Chown(DataDir, App); err != nil {
 		return err
 	}
 	return linux.Chown(storageDir, App)
@@ -144,12 +152,12 @@ func (i *Installer) UpdateConfigs() error {
 
 func (i *Installer) GenerateConfig(storageDir string) error {
 	variables := Variables{
-		App:          App,
-		AppDir:       AppDir,
-		DataDir:      DataDir,
-		CommonDir:    CommonDir,
-		StorageDir:   storageDir,
-		Socket:       path.Join(DataDir, "audiobookshelf.sock"),
+		App:        App,
+		AppDir:     AppDir,
+		DataDir:    DataDir,
+		CommonDir:  CommonDir,
+		StorageDir: storageDir,
+		Socket:     path.Join(DataDir, "audiobookshelf.sock"),
 	}
 
 	return config.Generate(

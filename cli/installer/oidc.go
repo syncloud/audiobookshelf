@@ -72,8 +72,8 @@ func (o *Oidc) Initialize(storageDir string) error {
 	return nil
 }
 
-func (o *Oidc) ConfigureApp(storageDir string) error {
-	dbPath := path.Join(storageDir, "config", "absdatabase.sqlite")
+func (o *Oidc) ConfigureApp() error {
+	dbPath := path.Join(o.dataDir, "config", "absdatabase.sqlite")
 	secret, err := o.platformClient.RegisterOIDCClient(App, []string{oidcWebCallbackPath, oidcMobileRedirectPath}, true, "client_secret_basic")
 	if err != nil {
 		return fmt.Errorf("oidc register: %w", err)
