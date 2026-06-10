@@ -47,12 +47,8 @@ func NewAbs(platformClient *platform.Client, logger *zap.Logger, dataDir string)
 }
 
 func (a *Abs) Initialize(storageDir string) error {
-	isInit, err := a.waitForStatus()
-	if err != nil {
+	if err := a.waitForReady(); err != nil {
 		return err
-	}
-	if isInit {
-		return nil
 	}
 	password, err := a.createRootUser()
 	if err != nil {
@@ -95,22 +91,18 @@ func socketHTTPClient(socket string) *http.Client {
 	}
 }
 
-func (a *Abs) waitForStatus() (bool, error) {
+func (a *Abs) waitForReady() error {
 	for attempt := 0; attempt < 60; attempt++ {
 		resp, err := a.client.Get("http://localhost/status")
 		if err == nil {
-			body, _ := io.ReadAll(resp.Body)
 			resp.Body.Close()
 			if resp.StatusCode == http.StatusOK {
-				var status statusResponse
-				if json.Unmarshal(body, &status) == nil {
-					return status.IsInit, nil
-				}
+				return nil
 			}
 		}
 		time.Sleep(2 * time.Second)
 	}
-	return false, fmt.Errorf("audiobookshelf did not become ready")
+	return fmt.Errorf("audiobookshelf did not become ready")
 }
 
 func (a *Abs) createRootUser() (string, error) {
