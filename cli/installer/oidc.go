@@ -4,16 +4,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/rand"
-	"crypto/tls"
-	"crypto/x509"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/syncloud/golib/platform"
 	"go.uber.org/zap"
-	_ "modernc.org/sqlite"
 	"io"
+	_ "modernc.org/sqlite"
 	"net"
 	"net/http"
 	"os"
@@ -23,7 +21,6 @@ import (
 )
 
 const (
-	platformCACert         = "/var/snap/platform/current/syncloud.ca.crt"
 	routerBasePath         = "/" + App
 	oidcWebCallbackPath    = routerBasePath + "/auth/openid/callback"
 	oidcMobileRedirectPath = routerBasePath + "/auth/openid/mobile-redirect"
@@ -35,15 +32,6 @@ const (
 
 type absStatus struct {
 	IsInit bool `json:"isInit"`
-}
-
-type oidcDiscovery struct {
-	Issuer                string `json:"issuer"`
-	AuthorizationEndpoint string `json:"authorization_endpoint"`
-	TokenEndpoint         string `json:"token_endpoint"`
-	UserinfoEndpoint      string `json:"userinfo_endpoint"`
-	JwksURI               string `json:"jwks_uri"`
-	EndSessionEndpoint    string `json:"end_session_endpoint"`
 }
 
 type Oidc struct {
@@ -94,8 +82,7 @@ func (o *Oidc) ConfigureApp(storageDir string) error {
 	if err != nil {
 		return err
 	}
-	discovery := o.discoverOIDC(authUrl)
-	if err := o.enableOIDCInDb(dbPath, discovery, secret); err != nil {
+	if err := o.enableOIDCInDb(dbPath, authUrl, secret); err != nil {
 		return fmt.Errorf("oidc update db: %w", err)
 	}
 	return o.platformClient.RestartService(fmt.Sprint(App, ".abs"))
@@ -221,48 +208,8 @@ func randomPassword() (string, error) {
 	return base64.RawURLEncoding.EncodeToString(buffer), nil
 }
 
-func (o *Oidc) discoverOIDC(authUrl string) *oidcDiscovery {
+func (o *Oidc) enableOIDCInDb(dbPath string, authUrl string, secret string) error {
 	base := strings.TrimRight(authUrl, "/")
-	fallback := &oidcDiscovery{
-		Issuer:                base,
-		AuthorizationEndpoint: base + "/api/oidc/authorization",
-		TokenEndpoint:         base + "/api/oidc/token",
-		UserinfoEndpoint:      base + "/api/oidc/userinfo",
-		JwksURI:               base + "/jwks.json",
-		EndSessionEndpoint:    base + "/api/oidc/end-session",
-	}
-
-	transport := &http.Transport{}
-	if caCert, err := os.ReadFile(platformCACert); err == nil {
-		pool := x509.NewCertPool()
-		if pool.AppendCertsFromPEM(caCert) {
-			transport.TLSClientConfig = &tls.Config{RootCAs: pool}
-		}
-	}
-	client := &http.Client{Timeout: 15 * time.Second, Transport: transport}
-	url := base + "/.well-known/openid-configuration"
-
-	for attempt := 0; attempt < 30; attempt++ {
-		resp, err := client.Get(url)
-		if err == nil {
-			body, _ := io.ReadAll(resp.Body)
-			resp.Body.Close()
-			if resp.StatusCode == http.StatusOK {
-				discovery := &oidcDiscovery{}
-				if json.Unmarshal(body, discovery) == nil && discovery.TokenEndpoint != "" {
-					return discovery
-				}
-			}
-		} else {
-			o.logger.Info("oidc discovery retry", zap.Error(err))
-		}
-		time.Sleep(2 * time.Second)
-	}
-	o.logger.Info("oidc discovery unavailable, using authelia defaults", zap.String("issuer", base))
-	return fallback
-}
-
-func (o *Oidc) enableOIDCInDb(dbPath string, discovery *oidcDiscovery, secret string) error {
 	db, err := sql.Open("sqlite", dbPath)
 	if err != nil {
 		return err
@@ -283,14 +230,11 @@ func (o *Oidc) enableOIDCInDb(dbPath string, discovery *oidcDiscovery, secret st
 	settings["authOpenIDGroupClaim"] = "groups"
 	settings["authOpenIDAdminGroups"] = "syncloud"
 	settings["authOpenIDGroupDefaultRole"] = "user"
-	settings["authOpenIDIssuerURL"] = discovery.Issuer
-	settings["authOpenIDAuthorizationURL"] = discovery.AuthorizationEndpoint
-	settings["authOpenIDTokenURL"] = discovery.TokenEndpoint
-	settings["authOpenIDUserInfoURL"] = discovery.UserinfoEndpoint
-	settings["authOpenIDJwksURL"] = discovery.JwksURI
-	if discovery.EndSessionEndpoint != "" {
-		settings["authOpenIDLogoutURL"] = discovery.EndSessionEndpoint
-	}
+	settings["authOpenIDIssuerURL"] = base
+	settings["authOpenIDAuthorizationURL"] = base + "/api/oidc/authorization"
+	settings["authOpenIDTokenURL"] = base + "/api/oidc/token"
+	settings["authOpenIDUserInfoURL"] = base + "/api/oidc/userinfo"
+	settings["authOpenIDJwksURL"] = base + "/jwks.json"
 	settings["authOpenIDClientID"] = App
 	settings["authOpenIDClientSecret"] = secret
 	settings["authOpenIDTokenSigningAlgorithm"] = "RS256"

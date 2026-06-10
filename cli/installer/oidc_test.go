@@ -25,12 +25,7 @@ func TestEnableOIDCInDb(t *testing.T) {
 	db.Close()
 
 	o := &Oidc{}
-	d := &oidcDiscovery{
-		Issuer: "https://auth.example.com", AuthorizationEndpoint: "https://auth.example.com/api/oidc/authorization",
-		TokenEndpoint: "https://auth.example.com/api/oidc/token", UserinfoEndpoint: "https://auth.example.com/api/oidc/userinfo",
-		JwksURI: "https://auth.example.com/jwks.json", EndSessionEndpoint: "https://auth.example.com/api/oidc/end-session",
-	}
-	if err := o.enableOIDCInDb(dbPath, d, "s3cr3t"); err != nil {
+	if err := o.enableOIDCInDb(dbPath, "https://auth.example.com/", "s3cr3t"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -51,8 +46,11 @@ func TestEnableOIDCInDb(t *testing.T) {
 	if s["authOpenIDClientSecret"] != "s3cr3t" || s["authOpenIDClientID"] != App {
 		t.Fatalf("client creds not set: %v / %v", s["authOpenIDClientID"], s["authOpenIDClientSecret"])
 	}
-	if s["authOpenIDTokenURL"] != d.TokenEndpoint || s["id"] != "server-settings" {
+	if s["authOpenIDIssuerURL"] != "https://auth.example.com" || s["authOpenIDTokenURL"] != "https://auth.example.com/api/oidc/token" || s["authOpenIDJwksURL"] != "https://auth.example.com/jwks.json" || s["id"] != "server-settings" {
 		t.Fatalf("endpoints/id wrong: %v", s)
+	}
+	if _, ok := s["authOpenIDLogoutURL"]; ok {
+		t.Fatalf("logout url should not be set (authelia has no end_session_endpoint)")
 	}
 	if s["authOpenIDAutoRegister"] != true {
 		t.Fatalf("autoRegister not set")
