@@ -38,11 +38,19 @@ type Abs struct {
 }
 
 func NewAbs(platformClient *platform.Client, logger *zap.Logger, dataDir string) *Abs {
+	socket := path.Join(dataDir, "audiobookshelf.sock")
 	return &Abs{
 		platformClient: platformClient,
 		logger:         logger,
 		dataDir:        dataDir,
-		client:         socketHTTPClient(path.Join(dataDir, "audiobookshelf.sock")),
+		client: &http.Client{
+			Timeout: 15 * time.Second,
+			Transport: &http.Transport{
+				DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+					return (&net.Dialer{}).DialContext(ctx, "unix", socket)
+				},
+			},
+		},
 	}
 }
 
@@ -78,17 +86,6 @@ func (a *Abs) ConfigureApp() error {
 		return fmt.Errorf("oidc update db: %w", err)
 	}
 	return a.platformClient.RestartService(fmt.Sprint(App, ".abs"))
-}
-
-func socketHTTPClient(socket string) *http.Client {
-	return &http.Client{
-		Timeout: 15 * time.Second,
-		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				return (&net.Dialer{}).DialContext(ctx, "unix", socket)
-			},
-		},
-	}
 }
 
 func (a *Abs) waitForReady() error {
