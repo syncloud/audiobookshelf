@@ -102,6 +102,12 @@ local build(arch, ui) = [{
            commands: ['./web/e2e/ci-ui.sh ' + project],
          }
          for project in ['desktop', 'mobile']
+       ] + [
+         {
+           name: 'test-upgrade',
+           image: 'mcr.microsoft.com/playwright:' + playwright,
+           commands: ['./web/e2e/ci-upgrade.sh'],
+         },
        ] else []) + [
     {
       name: 'publish',
