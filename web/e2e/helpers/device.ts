@@ -10,7 +10,7 @@ export function waitForStable (minSeconds = 40) {
       `t=$(systemctl show ${service} -p ActiveEnterTimestampMonotonic --value 2>/dev/null); ` +
       `n=$(awk '{printf "%d", $1*1000000}' /proc/uptime); ` +
       `u=$(( (n - t) / 1000000 )); ` +
-      `if [ "$s" = active ] && [ "$t" -gt 0 ] && [ "$u" -ge ${minSeconds} ]; then echo "stable for ${u}s"; exit 0; fi; ` +
+      `if [ "$s" = active ] && [ "$t" -gt 0 ] && [ "$u" -ge ${minSeconds} ]; then echo "stable for $u seconds"; exit 0; fi; ` +
       `sleep 5; ` +
       `done; echo "service did not stabilize"; exit 1`,
     { timeout: 1_200_000 }
