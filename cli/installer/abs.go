@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -66,7 +67,11 @@ func (a *Abs) Initialize(storageDir string) error {
 	if err != nil {
 		return fmt.Errorf("login: %w", err)
 	}
-	if err := a.createLibrary(token, defaultLibraryName, path.Join(storageDir, defaultLibraryDir)); err != nil {
+	libraryPath, err := filepath.EvalSymlinks(path.Join(storageDir, defaultLibraryDir))
+	if err != nil {
+		return fmt.Errorf("resolve library path: %w", err)
+	}
+	if err := a.createLibrary(token, defaultLibraryName, libraryPath); err != nil {
 		return fmt.Errorf("create default library: %w", err)
 	}
 	return nil
