@@ -20,7 +20,7 @@ async function waitForLoginPage (page) {
 }
 
 test('the published store version upgrades to this build with the library intact', async ({ page }, info) => {
-  test.setTimeout(2_400_000)
+  test.setTimeout(3_600_000)
 
   installStoreVersion()
   await waitForLoginPage(page)

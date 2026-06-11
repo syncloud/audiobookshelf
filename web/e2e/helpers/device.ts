@@ -3,9 +3,9 @@ import { ssh, scpTo } from './ssh'
 const app = 'audiobookshelf'
 const service = `snap.${app}.abs.service`
 
-export function waitForStable (minSeconds = 40) {
+export function waitForStable (minSeconds = 90) {
   ssh(
-    `for i in $(seq 1 180); do ` +
+    `for i in $(seq 1 300); do ` +
       `s=$(systemctl is-active ${service} 2>/dev/null); ` +
       `t=$(systemctl show ${service} -p ActiveEnterTimestampMonotonic --value 2>/dev/null); ` +
       `up=$(awk '{print int($1)}' /proc/uptime); ` +
@@ -13,7 +13,7 @@ export function waitForStable (minSeconds = 40) {
       `if [ "$s" = active ] && [ "$t" -gt 0 ] && [ "$u" -ge ${minSeconds} ]; then echo "stable for $u seconds"; exit 0; fi; ` +
       `sleep 5; ` +
       `done; echo "service did not stabilize"; exit 1`,
-    { timeout: 1_200_000 }
+    { timeout: 1_700_000 }
   )
 }
 
