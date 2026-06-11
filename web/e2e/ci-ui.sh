@@ -29,6 +29,12 @@ ffmpeg -y -f lavfi -i anullsrc=r=44100:cl=mono -t 60 -b:a 128k \
   "${BOOK_DIR}/Test Book ${PROJECT}.mp3" >/dev/null 2>&1
 export PLAYWRIGHT_BOOK_FILE="${BOOK_DIR}/Test Book ${PROJECT}.mp3"
 
+ffmpeg -y -f lavfi -i anullsrc=r=44100:cl=mono -t 60 -b:a 128k \
+  -metadata title="Rescan Book ${PROJECT}" -metadata album="Rescan Book ${PROJECT}" -metadata artist="Test Author" \
+  "${BOOK_DIR}/Rescan Book ${PROJECT}.mp3" >/dev/null 2>&1
+export PLAYWRIGHT_RESCAN_BOOK_FILE="${BOOK_DIR}/Rescan Book ${PROJECT}.mp3"
+export PLAYWRIGHT_SNAP=$(cd ${ROOT} && realpath "$(cat package.name)")
+
 AUDIOBOOK_DIR="${DIR}/.audiobook/Test Audiobook ${PROJECT}"
 rm -rf "${DIR}/.audiobook"
 mkdir -p "${AUDIOBOOK_DIR}"
