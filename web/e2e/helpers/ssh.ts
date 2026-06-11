@@ -31,3 +31,8 @@ export function scpFrom (remote: string, local: string, opts: { throw?: boolean 
     if (opts.throw !== false) throw e
   }
 }
+
+export function scpTo (local: string, remote: string): void {
+  const args = ['-p', sshPassword, 'scp', ...baseArgs, local, `${sshUser}@${deviceHost}:${remote}`]
+  execFileSync('sshpass', args, { encoding: 'utf8', timeout: 300_000 })
+}

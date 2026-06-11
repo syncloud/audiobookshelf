@@ -38,6 +38,10 @@ LOGGER_JS=${APP_OUT}/server/Logger.js
 grep -q 'file logging disabled' ${LOGGER_JS} || sed -i -f ${DIR}/journal-logging.sed ${LOGGER_JS}
 grep -q 'file logging disabled' ${LOGGER_JS}
 
+FILEUTILS_JS=${APP_OUT}/server/utils/fileUtils.js
+grep -q 'SCANNER_RESOLVE_SYMLINKS' ${FILEUTILS_JS} || sed -i -f ${DIR}/scanner-symlinks.sed ${FILEUTILS_JS}
+grep -q 'SCANNER_RESOLVE_SYMLINKS' ${FILEUTILS_JS}
+
 cp -r /usr ${NODE_DIR}/usr
 cp -r /lib ${NODE_DIR}/lib
 
