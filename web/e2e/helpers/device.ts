@@ -8,8 +8,8 @@ export function waitForStable (minSeconds = 40) {
     `for i in $(seq 1 180); do ` +
       `s=$(systemctl is-active ${service} 2>/dev/null); ` +
       `t=$(systemctl show ${service} -p ActiveEnterTimestampMonotonic --value 2>/dev/null); ` +
-      `n=$(awk '{printf "%d", $1*1000000}' /proc/uptime); ` +
-      `u=$(( (n - t) / 1000000 )); ` +
+      `up=$(awk '{print int($1)}' /proc/uptime); ` +
+      `u=$(( up - t / 1000000 )); ` +
       `if [ "$s" = active ] && [ "$t" -gt 0 ] && [ "$u" -ge ${minSeconds} ]; then echo "stable for $u seconds"; exit 0; fi; ` +
       `sleep 5; ` +
       `done; echo "service did not stabilize"; exit 1`,
