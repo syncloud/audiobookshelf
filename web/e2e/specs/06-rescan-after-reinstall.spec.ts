@@ -12,7 +12,6 @@ const password = process.env.PLAYWRIGHT_PASSWORD || 'Password1'
 const libraryName = 'Books'
 const bookFile = process.env.PLAYWRIGHT_RESCAN_BOOK_FILE || ''
 const snap = process.env.PLAYWRIGHT_SNAP || ''
-const bookTitle = `Rescan Book ${process.env.PLAYWRIGHT_PROJECT || 'desktop'}`
 
 test('a reinstall rescans the existing library without re-uploading', async ({ page }, info) => {
   test.setTimeout(600_000)
@@ -33,6 +32,7 @@ test('a reinstall rescans the existing library without re-uploading', async ({ p
   await loginViaSyncloud(page, baseURL, username, password)
   await shoot(page, info, 'after-reinstall')
 
-  await expect(page.getByText(bookTitle).first()).toBeVisible({ timeout: 120_000 })
+  const card = page.locator('[id^="book-card-"]').filter({ hasText: 'Rescan Book' }).first()
+  await expect(card).toBeVisible({ timeout: 120_000 })
   await shoot(page, info, 'rescanned')
 })
