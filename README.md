@@ -1,6 +1,12 @@
 # Audiobookshelf — Syncloud app
 
-Packages the [Audiobookshelf](https://www.audiobookshelf.org/) self-hosted
-audiobook and podcast server as a Syncloud app.
+Packages the [Audiobookshelf](https://www.audiobookshelf.org/) server
+(`advplyr/audiobookshelf`) as a Syncloud app.
 
-Work in progress — see the `wip` branch.
+## Build
+
+    ./package.sh audiobookshelf <build-number>
+
+## Install on a device
+
+    snap install --devmode ./audiobookshelf_<version>_<arch>.snap

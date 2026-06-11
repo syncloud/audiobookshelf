@@ -1,0 +1,38 @@
+name: audiobookshelf
+summary: Audio Book Shelf
+description: Self-hosted audiobook and podcast server
+
+apps:
+  abs:
+    user: audiobookshelf
+    command: bin/service.abs.sh
+    daemon: simple
+    restart-condition: always
+    start-timeout: 600s
+    restart-delay: 10s
+
+  nginx:
+    user: audiobookshelf
+    command: bin/service.nginx.sh
+    daemon: simple
+    restart-condition: always
+    start-timeout: 600s
+    restart-delay: 10s
+
+  cli:
+    command: bin/cli
+
+  storage-change:
+    command: bin/cli storage-change
+
+  access-change:
+    command: bin/cli access-change
+
+  backup-pre-stop:
+    command: bin/cli backup-pre-stop
+
+  restore-pre-start:
+    command: bin/cli restore-pre-start
+
+  restore-post-start:
+    command: bin/cli restore-post-start
