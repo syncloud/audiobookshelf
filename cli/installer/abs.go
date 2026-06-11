@@ -71,8 +71,12 @@ func (a *Abs) Initialize(storageDir string) error {
 	if err != nil {
 		return fmt.Errorf("resolve library path: %w", err)
 	}
-	if err := a.createLibrary(token, defaultLibraryName, libraryPath); err != nil {
+	libraryID, err := a.createLibrary(token, defaultLibraryName, libraryPath)
+	if err != nil {
 		return fmt.Errorf("create default library: %w", err)
+	}
+	if err := a.scanLibrary(token, libraryID); err != nil {
+		return fmt.Errorf("scan default library: %w", err)
 	}
 	return nil
 }
@@ -156,32 +160,80 @@ func (a *Abs) login(username, password string) (string, error) {
 	return lr.User.AccessToken, nil
 }
 
-func (a *Abs) createLibrary(token, name, folderPath string) error {
+func (a *Abs) createLibrary(token, name, folderPath string) (string, error) {
 	payload, err := json.Marshal(createLibraryRequest{
 		Name:      name,
 		MediaType: "book",
 		Folders:   []libraryFolder{{FullPath: folderPath}},
 	})
 	if err != nil {
-		return err
+		return "", err
 	}
 	req, err := http.NewRequest(http.MethodPost, "http://localhost/api/libraries", bytes.NewReader(payload))
 	if err != nil {
-		return err
+		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+token)
 	resp, err := a.client.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return fmt.Errorf("create library returned %s: %s", resp.Status, string(body))
+		return "", fmt.Errorf("create library returned %s: %s", resp.Status, string(body))
+	}
+	var lib libraryResponse
+	if err := json.Unmarshal(body, &lib); err != nil {
+		return "", err
+	}
+	if lib.ID == "" {
+		return "", fmt.Errorf("create library returned no id")
 	}
 	a.logger.Info("created default library", zap.String("name", name), zap.String("path", folderPath))
-	return nil
+	return lib.ID, nil
+}
+
+func (a *Abs) scanLibrary(token, libraryID string) error {
+	req, err := http.NewRequest(http.MethodPost, "http://localhost/api/libraries/"+libraryID+"/scan?force=1", nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return err
+	}
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("scan returned %s", resp.Status)
+	}
+	return a.waitForScan(token, libraryID)
+}
+
+func (a *Abs) waitForScan(token, libraryID string) error {
+	for attempt := 0; attempt < 120; attempt++ {
+		req, err := http.NewRequest(http.MethodGet, "http://localhost/api/libraries/"+libraryID, nil)
+		if err != nil {
+			return err
+		}
+		req.Header.Set("Authorization", "Bearer "+token)
+		resp, err := a.client.Do(req)
+		if err == nil {
+			body, _ := io.ReadAll(resp.Body)
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				var lib libraryResponse
+				if json.Unmarshal(body, &lib) == nil && lib.LastScan != nil {
+					a.logger.Info("default library scanned", zap.String("library", libraryID))
+					return nil
+				}
+			}
+		}
+		time.Sleep(2 * time.Second)
+	}
+	return fmt.Errorf("library scan did not complete")
 }
 
 func randomPassword() (string, error) {
