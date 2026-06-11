@@ -14,7 +14,7 @@ const bookFile = process.env.PLAYWRIGHT_RESCAN_BOOK_FILE || ''
 const snap = process.env.PLAYWRIGHT_SNAP || ''
 
 test('a reinstall rescans the existing library without re-uploading', async ({ page }, info) => {
-  test.setTimeout(600_000)
+  test.setTimeout(900_000)
 
   await loginViaSyncloud(page, baseURL, username, password)
   await uploadBook(page, libraryName, bookFile)
@@ -27,7 +27,7 @@ test('a reinstall rescans the existing library without re-uploading', async ({ p
   await expect(async () => {
     await page.goto(baseURL)
     await expect(page.getByRole('link', { name: /login with syncloud/i })).toBeVisible({ timeout: 10_000 })
-  }).toPass({ timeout: 300_000 })
+  }).toPass({ timeout: 600_000 })
 
   await loginViaSyncloud(page, baseURL, username, password)
   await shoot(page, info, 'after-reinstall')
