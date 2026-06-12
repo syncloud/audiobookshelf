@@ -1,16 +1,22 @@
-import { test } from '@playwright/test'
-import { installStoreVersion, upgradeToBuild, inspect } from '../helpers/device'
+import { test, expect } from '@playwright/test'
+import { shoot } from '../helpers/screenshot'
+import { loginViaSyncloud } from '../helpers/auth'
+import { installStoreVersion, upgradeToBuild } from '../helpers/device'
 
-test('diagnose store install + upgrade restart/db behavior', async ({ page }, info) => {
+const domain = process.env.PLAYWRIGHT_DOMAIN || 'bookworm.com'
+const baseURL = `https://audiobookshelf.${domain}`
+const username = process.env.PLAYWRIGHT_USER || 'user'
+const password = process.env.PLAYWRIGHT_PASSWORD || 'Password1'
+
+test('the published store version upgrades to this build keeping session and data', async ({ page }, info) => {
   test.setTimeout(1_800_000)
 
   installStoreVersion()
-  console.log(inspect('after store install'))
-  await page.waitForTimeout(60_000)
-  console.log(inspect('store install +60s'))
+  await loginViaSyncloud(page, baseURL, username, password)
+  await shoot(page, info, 'store-version')
 
   upgradeToBuild()
-  console.log(inspect('after upgrade'))
-  await page.waitForTimeout(60_000)
-  console.log(inspect('upgrade +60s'))
+  await page.goto(baseURL)
+  await expect(page.getByRole('toolbar', { name: 'Appbar' })).toBeVisible({ timeout: 120_000 })
+  await shoot(page, info, 'after-upgrade')
 })
