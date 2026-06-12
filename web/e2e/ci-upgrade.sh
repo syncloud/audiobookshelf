@@ -19,15 +19,7 @@ getent hosts $APP_DOMAIN | sed "s/$APP_DOMAIN/auth.$DOMAIN/g" | tee -a /etc/host
 cat /etc/hosts
 
 apt-get update -qq
-apt-get install -y -qq sshpass openssh-client ffmpeg
-
-BOOK_DIR="${DIR}/.book-upgrade"
-rm -rf "${BOOK_DIR}"
-mkdir -p "${BOOK_DIR}"
-ffmpeg -y -f lavfi -i anullsrc=r=44100:cl=mono -t 60 -b:a 128k \
-  -metadata title="Test Book ${PLAYWRIGHT_PROJECT}" -metadata album="Test Book ${PLAYWRIGHT_PROJECT}" -metadata artist="Test Author" \
-  "${BOOK_DIR}/Test Book ${PLAYWRIGHT_PROJECT}.mp3" >/dev/null 2>&1
-export PLAYWRIGHT_BOOK_FILE="${BOOK_DIR}/Test Book ${PLAYWRIGHT_PROJECT}.mp3"
+apt-get install -y -qq sshpass openssh-client
 
 export PLAYWRIGHT_SNAP=$(cd ${ROOT} && realpath "$(cat package.name)")
 
