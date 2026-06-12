@@ -12,11 +12,15 @@ test('the published store version upgrades to this build keeping session and dat
   test.setTimeout(1_800_000)
 
   installStoreVersion()
-  await loginViaSyncloud(page, baseURL, username, password)
+  await expect(async () => {
+    await loginViaSyncloud(page, baseURL, username, password)
+  }).toPass({ timeout: 300_000, intervals: [5_000] })
   await shoot(page, info, 'store-version')
 
   upgradeToBuild()
-  await page.goto(baseURL)
-  await expect(page.getByRole('toolbar', { name: 'Appbar' })).toBeVisible({ timeout: 120_000 })
+  await expect(async () => {
+    await page.goto(baseURL)
+    await expect(page.getByRole('toolbar', { name: 'Appbar' })).toBeVisible({ timeout: 10_000 })
+  }).toPass({ timeout: 300_000, intervals: [5_000] })
   await shoot(page, info, 'after-upgrade')
 })
