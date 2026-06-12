@@ -10,8 +10,8 @@ const password = process.env.PLAYWRIGHT_PASSWORD || 'Password1'
 
 async function waitForRest (page) {
   await expect(async () => {
-    const r = await page.request.get(`${baseURL}/status`)
-    expect(r.ok()).toBeTruthy()
+    await page.goto(baseURL)
+    await expect(page.getByRole('link', { name: /login with syncloud/i })).toBeVisible({ timeout: 10_000 })
   }).toPass({ timeout: 600_000, intervals: [5_000] })
 }
 
