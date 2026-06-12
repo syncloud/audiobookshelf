@@ -4,7 +4,7 @@ const domain = process.env.PLAYWRIGHT_DOMAIN || 'bookworm.com'
 const baseURL = `https://audiobookshelf.${domain}`
 
 export default defineConfig({
-  testDir: process.env.PLAYWRIGHT_TESTDIR || './specs',
+  testDir: process.env.PLAYWRIGHT_TESTDIR,
   timeout: 120_000,
   expect: { timeout: 20_000 },
   workers: 1,
