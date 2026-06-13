@@ -4,10 +4,10 @@ import { loginViaSyncloud } from '../helpers/auth'
 import { uploadBook } from '../helpers/abs'
 import { ssh, scpTo } from '../helpers/ssh'
 
-const domain = process.env.PLAYWRIGHT_DOMAIN || 'bookworm.com'
+const domain = process.env.PLAYWRIGHT_DOMAIN
 const baseURL = `https://audiobookshelf.${domain}`
-const username = process.env.PLAYWRIGHT_USER || 'user'
-const password = process.env.PLAYWRIGHT_PASSWORD || 'Password1'
+const username = process.env.PLAYWRIGHT_USER
+const password = process.env.PLAYWRIGHT_PASSWORD
 
 const libraryName = 'Books'
 const bookFile = process.env.PLAYWRIGHT_RESCAN_BOOK_FILE || ''

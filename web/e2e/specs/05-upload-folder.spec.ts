@@ -3,10 +3,10 @@ import { shoot } from '../helpers/screenshot'
 import { loginViaSyncloud } from '../helpers/auth'
 import { uploadFolder } from '../helpers/abs'
 
-const domain = process.env.PLAYWRIGHT_DOMAIN || 'bookworm.com'
+const domain = process.env.PLAYWRIGHT_DOMAIN
 const baseURL = `https://audiobookshelf.${domain}`
-const username = process.env.PLAYWRIGHT_USER || 'user'
-const password = process.env.PLAYWRIGHT_PASSWORD || 'Password1'
+const username = process.env.PLAYWRIGHT_USER
+const password = process.env.PLAYWRIGHT_PASSWORD
 
 const libraryName = 'Books'
 const audiobookDir = process.env.PLAYWRIGHT_AUDIOBOOK_DIR || ''

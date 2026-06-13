@@ -1,6 +1,6 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const domain = process.env.PLAYWRIGHT_DOMAIN || 'bookworm.com'
+const domain = process.env.PLAYWRIGHT_DOMAIN
 const baseURL = `https://audiobookshelf.${domain}`
 
 export default defineConfig({

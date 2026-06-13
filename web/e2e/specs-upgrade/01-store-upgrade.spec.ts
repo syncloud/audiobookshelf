@@ -3,10 +3,10 @@ import { shoot } from '../helpers/screenshot'
 import { loginViaSyncloud } from '../helpers/auth'
 import { installStoreVersion, upgradeToBuild } from '../helpers/device'
 
-const domain = process.env.PLAYWRIGHT_DOMAIN || 'bookworm.com'
+const domain = process.env.PLAYWRIGHT_DOMAIN
 const baseURL = `https://audiobookshelf.${domain}`
-const username = process.env.PLAYWRIGHT_USER || 'user'
-const password = process.env.PLAYWRIGHT_PASSWORD || 'Password1'
+const username = process.env.PLAYWRIGHT_USER
+const password = process.env.PLAYWRIGHT_PASSWORD
 
 test('the published store version upgrades to this build keeping session and data', async ({ page }, info) => {
   test.setTimeout(1_800_000)
