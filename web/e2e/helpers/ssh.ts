@@ -11,10 +11,10 @@ const baseArgs = [
   '-o', 'ConnectTimeout=10'
 ]
 
-export function ssh (cmd: string, opts: { throw?: boolean } = {}): string {
+export function ssh (cmd: string, opts: { throw?: boolean, timeout?: number } = {}): string {
   const args = ['-p', sshPassword, 'ssh', ...baseArgs, `${sshUser}@${deviceHost}`, cmd]
   try {
-    return execFileSync('sshpass', args, { encoding: 'utf8', timeout: 120_000 })
+    return execFileSync('sshpass', args, { encoding: 'utf8', timeout: opts.timeout ?? 120_000 })
   } catch (e: any) {
     if (opts.throw === false) {
       return (e.stdout?.toString() ?? '') + (e.stderr?.toString() ?? '')

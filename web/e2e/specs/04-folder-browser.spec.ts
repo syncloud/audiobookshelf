@@ -2,10 +2,10 @@ import { test, expect } from '@playwright/test'
 import { loginViaSyncloud } from '../helpers/auth'
 import { getToken } from '../helpers/abs'
 
-const domain = process.env.PLAYWRIGHT_DOMAIN || 'bookworm.com'
+const domain = process.env.PLAYWRIGHT_DOMAIN
 const baseURL = `https://audiobookshelf.${domain}`
-const username = process.env.PLAYWRIGHT_USER || 'user'
-const password = process.env.PLAYWRIGHT_PASSWORD || 'Password1'
+const username = process.env.PLAYWRIGHT_USER
+const password = process.env.PLAYWRIGHT_PASSWORD
 
 async function browse(page, token: string, query: string): Promise<string[]> {
   return page.evaluate(async ({ query, token }) => {

@@ -1,10 +1,10 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const domain = process.env.PLAYWRIGHT_DOMAIN || 'bookworm.com'
+const domain = process.env.PLAYWRIGHT_DOMAIN
 const baseURL = `https://audiobookshelf.${domain}`
 
 export default defineConfig({
-  testDir: './specs',
+  testDir: process.env.PLAYWRIGHT_TESTDIR,
   timeout: 120_000,
   expect: { timeout: 20_000 },
   workers: 1,
